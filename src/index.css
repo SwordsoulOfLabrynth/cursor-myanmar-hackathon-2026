@@ -1,0 +1,276 @@
+:root {
+  --ink: #1c120c;
+  --paper: #f3e6d4;
+  --lacquer: #9f1d2a;
+  --gold: #c9a227;
+  --teak: #3a2418;
+  --mist: #d7c4ae;
+  --card: #fff6ea;
+  color: var(--ink);
+  font-family: "Noto Sans Myanmar", "Manrope", system-ui, sans-serif;
+  background: var(--paper);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--paper);
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Noto Serif Myanmar", "Source Serif 4", serif;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.shell {
+  width: min(430px, 100%);
+  margin: 0 auto;
+  padding: 20px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.topbar h1 {
+  font-size: 1.55rem;
+  line-height: 1.25;
+  margin: 4px 0 8px;
+}
+
+.kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lacquer);
+}
+
+.lede {
+  margin: 0 0 8px;
+  color: var(--teak);
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b5344;
+  border-left: 3px solid var(--gold);
+  padding-left: 8px;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid #e2d0b8;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.sim {
+  position: relative;
+  text-align: left;
+  background: #2a1812;
+  color: #f7ead8;
+  border: 0;
+  border-radius: 12px;
+  padding: 18px 8px 10px;
+  min-height: 108px;
+  cursor: pointer;
+}
+
+.sim-notch {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  width: 18px;
+  height: 10px;
+  border-radius: 2px;
+  background: #c9a227;
+}
+
+.sim strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.sim span {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+.sim .plan {
+  margin-top: 8px;
+  color: #f0c36a;
+}
+
+.sim.selected {
+  outline: 2px solid var(--lacquer);
+  background: #411f18;
+}
+
+.usage-grid {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.thermo-track {
+  width: 28px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 20px;
+  background: #ead9c4;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border: 2px solid #3a2418;
+}
+
+.thermo-fill {
+  width: 100%;
+  background: var(--lacquer);
+}
+
+.thermo p {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.facts,
+.history,
+.grounding {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+}
+
+.history {
+  margin-top: 12px;
+}
+
+.history time {
+  display: block;
+  font-size: 0.7rem;
+  color: #6b5344;
+}
+
+.chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chip,
+.primary {
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip {
+  text-align: left;
+  background: #efe0cc;
+  border: 1px solid #d7c4ae;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+}
+
+textarea {
+  width: 100%;
+  font: inherit;
+  border-radius: 12px;
+  border: 1px solid #d7c4ae;
+  padding: 10px;
+  resize: vertical;
+  background: #fffaf2;
+}
+
+.primary {
+  margin-top: 10px;
+  width: 100%;
+  background: var(--lacquer);
+  color: #fff8ef;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: 700;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+}
+
+.card-next {
+  background: #2a1812;
+  color: #f7ead8;
+  border-color: #5a3328;
+}
+
+.card-next h2,
+.card-next h3,
+.card-next .kicker {
+  color: #f0c36a;
+}
+
+.pack-name {
+  font-size: 1.1rem;
+}
+
+.benefit {
+  background: #411f18;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.toast {
+  position: sticky;
+  bottom: 12px;
+  background: #1c120c;
+  color: #fff6ea;
+  padding: 12px;
+  border-radius: 12px;
+  border-left: 4px solid var(--gold);
+}
+
+.muted,
+.hint {
+  color: #6b5344;
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--lacquer);
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto;
+  }
+}

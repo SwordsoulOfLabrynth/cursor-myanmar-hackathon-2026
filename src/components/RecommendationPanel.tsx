@@ -48,9 +48,10 @@ export function RecommendationPanel({
   }
 
   const pack = recommendation.recommendedPackage;
+  const keepCurrent = recommendation.action.id.startsWith("keep_");
 
   return (
-    <section className="recommendation-card result" aria-live="polite">
+    <section className={`recommendation-card result${keepCurrent ? " keep-current" : ""}`} aria-live="polite">
       <div className="result-topline">
         <span className="intent-pill">{recommendation.intent.labelMm}</span>
         <span className="source-pill">
@@ -60,7 +61,7 @@ export function RecommendationPanel({
       </div>
 
       <div className="decision">
-        <p className="step-label">ATOM Mind ရဲ့ အကြံပြုချက်</p>
+        <p className="step-label">RECOMMEND → EXPLAIN → ACT</p>
         {pack ? (
           <>
             <h2>{pack.nameMm}</h2>
@@ -73,6 +74,14 @@ export function RecommendationPanel({
               {pack.monthlyFeeMmk.toLocaleString()} <small>ကျပ်</small>
             </p>
           </>
+        ) : keepCurrent ? (
+          <div className="keep-plan-title">
+            <span aria-hidden="true">✓</span>
+            <div>
+              <small>မလိုအပ်ဘဲ ပိုမသုံးပါနဲ့</small>
+              <h2>လက်ရှိ plan က လုံလောက်ပါတယ်</h2>
+            </div>
+          </div>
         ) : (
           <h2>ပက်ကေ့ချ် မပြောင်းသေးပါ</h2>
         )}
@@ -97,7 +106,7 @@ export function RecommendationPanel({
         <p>{recommendation.situationMm}</p>
         <p>{recommendation.whyCurrentDoesNotFitMm}</p>
         <ul className="grounding">
-          {recommendation.grounding.citedFactsMm.map((fact) => (
+          {recommendation.grounding.citedFactsMm.slice(0, 3).map((fact) => (
             <li key={fact}><span aria-hidden="true">✓</span>{fact}</li>
           ))}
         </ul>

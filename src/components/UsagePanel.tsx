@@ -1,5 +1,6 @@
 import type { CustomerContext } from "../../shared/api-contract.ts";
 import { analyzeUsage } from "../../shared/recommendEngine.ts";
+import "../concierge.css";
 
 type Props = {
   context: CustomerContext;
@@ -21,13 +22,38 @@ export function UsagePanel({ context, onAutoRecommend, disabled }: Props) {
       (context.usage.voiceUsedMin / context.usage.voiceAllowanceMin) * 100,
     ),
   );
+  const normalDailyData = context.usage.dataAllowanceGb / 30;
+  const burnVsNormalPct = Math.round(
+    ((analysis.dataBurnGbPerDay - normalDailyData) /
+      Math.max(normalDailyData, 0.01)) *
+      100,
+  );
+  const prediction =
+    analysis.estimatedDaysToEmpty === null
+      ? "လက်ရှိနှုန်းအရ data ကုန်မည့်ရက်ကို မခန့်မှန်းနိုင်သေးပါ"
+      : analysis.estimatedDaysToEmpty <= 5
+        ? `သင့် data က ${analysis.estimatedDaysToEmpty} ရက်ခန့်အတွင်း ကုန်နိုင်ပါတယ်`
+        : `သင့် data က ${analysis.estimatedDaysToEmpty} ရက်ခန့် ဆက်သုံးနိုင်ပါတယ်`;
 
   return (
+    <>
+    <div className="concierge-greeting">
+      <p>သင့် usage ကို နားလည်ထားတယ်</p>
+      <h1>မင်္ဂလာပါ {context.displayNameMm} 👋</h1>
+      <span>
+        {analysis.estimatedDaysToEmpty !== null &&
+        analysis.estimatedDaysToEmpty <= 5
+          ? `Data သုံးနှုန်းမြန်နေပါတယ် — ${analysis.estimatedDaysToEmpty ?? "မကြာမီ"} ရက်ခန့်ပဲ ကျန်နိုင်ပါတယ်။`
+          : voicePct >= 80
+            ? "ဖုန်းခေါ်မိနစ် သုံးနှုန်းမြင့်နေပါတယ် — plan ကို အတူစစ်ကြည့်ရအောင်။"
+            : "လက်ရှိ plan က သင့် usage နဲ့ ကိုက်နေပါတယ် — အပိုမသုံးဘဲ ဆက်ထိန်းထားနိုင်တယ်။"}
+      </span>
+    </div>
     <section className="panel usage-panel" aria-labelledby="usage-heading">
       <div className="section-heading">
         <div>
-          <p className="step-label">Usage Analyzer</p>
-          <h2 id="usage-heading">သင့် plan ကို စစ်ထားတယ်</h2>
+          <p className="step-label">UNDERSTAND → PREDICT</p>
+          <h2 id="usage-heading">AI Insight</h2>
         </div>
         <div className="plan-badge">
           <small>လက်ရှိအစီအစဉ်</small>
@@ -36,11 +62,35 @@ export function UsagePanel({ context, onAutoRecommend, disabled }: Props) {
       </div>
 
       <div className={`insight-verdict ${analysis.risk}`}>
-        <div>
-          <small>PLAN FIT SCORE</small>
-          <strong>{analysis.currentPlanFitScore}<span>/100</span></strong>
+        <span className="insight-icon" aria-hidden="true">{analysis.risk === "low" ? "✓" : "↗"}</span>
+        <div className="insight-copy">
+          <small>ATOM MIND PREDICTION</small>
+          <h3>{prediction}</h3>
+          <p>{analysis.insightMm}</p>
         </div>
-        <p>{analysis.insightMm}</p>
+      </div>
+
+      <div className="metric-grid">
+        <article className="metric-card">
+          <div className="metric-card-top"><span className="metric-icon data" aria-hidden="true">▰</span><small>Data</small><b>{dataPct}%</b></div>
+          <strong>{context.usage.dataUsedGb} <span>/ {context.usage.dataAllowanceGb} GB</span></strong>
+          <div className="meter" role="progressbar" aria-label="Data သုံးစွဲမှု" aria-valuenow={dataPct} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${dataPct}%` }} /></div>
+        </article>
+        <article className="metric-card">
+          <div className="metric-card-top"><span className="metric-icon voice" aria-hidden="true">◖</span><small>Voice</small><b>{voicePct}%</b></div>
+          <strong>{context.usage.voiceUsedMin} <span>/ {context.usage.voiceAllowanceMin} min</span></strong>
+          <div className="meter voice-meter" role="progressbar" aria-label="ဖုန်းခေါ်မိနစ် သုံးစွဲမှု" aria-valuenow={voicePct} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${voicePct}%` }} /></div>
+        </article>
+        <article className="metric-card">
+          <div className="metric-card-top"><span className="metric-icon topup" aria-hidden="true">＋</span><small>Top-ups</small></div>
+          <strong>{context.usage.topUpsThisMonth} <span>ကြိမ် / ဒီလ</span></strong>
+          <p>{context.usage.topUpsThisMonth >= 2 ? "အပိုကုန်ကျနေ" : "ပုံမှန်အတွင်း"}</p>
+        </article>
+        <article className="metric-card">
+          <div className="metric-card-top"><span className="metric-icon trend" aria-hidden="true">↗</span><small>Usage trend</small></div>
+          <strong>{analysis.dataBurnGbPerDay} <span>GB / ရက်</span></strong>
+          <p>{burnVsNormalPct > 0 ? `ပုံမှန်ထက် ${burnVsNormalPct}% မြန်` : `ပုံမှန်ထက် ${Math.abs(burnVsNormalPct)}% နည်း`}</p>
+        </article>
       </div>
 
       <div className="analyzer-metrics">
@@ -92,7 +142,7 @@ export function UsagePanel({ context, onAutoRecommend, disabled }: Props) {
         onClick={onAutoRecommend}
         disabled={disabled}
       >
-        <span>✦ အလိုအလျောက် အကြံရယူမည်</span>
+        <span>✦ ဒီ insight အရ အကြံရယူမည်</span>
         <span aria-hidden="true">→</span>
       </button>
 
@@ -166,5 +216,6 @@ export function UsagePanel({ context, onAutoRecommend, disabled }: Props) {
       </details>
       </details>
     </section>
+    </>
   );
 }

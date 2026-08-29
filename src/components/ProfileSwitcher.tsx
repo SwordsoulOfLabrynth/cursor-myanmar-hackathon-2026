@@ -32,7 +32,7 @@ export function ProfileSwitcher({ summaries, selectedId, onSelect }: Props) {
           {selected.displayNameMm.slice(0, 1)}
         </span>
         <div className="account-copy">
-          <p className="account-eyebrow">သင့် ATOM အကောင့်</p>
+          <p className="account-eyebrow">DEMO MODE · သင့် ATOM အကောင့်</p>
           <h2 id="account-heading">{selected.displayNameMm}</h2>
           <p className="account-meta">
             <span>{selected.phoneMasked}</span>
@@ -50,7 +50,7 @@ export function ProfileSwitcher({ summaries, selectedId, onSelect }: Props) {
           aria-controls={menuId}
           onClick={() => setMenuOpen((open) => !open)}
         >
-          <span>Demo account · စာရင်းပြောင်း</span>
+          <span>Demo Mode · Su Su / Ko Ko / Ma Ma</span>
           <span aria-hidden="true">{menuOpen ? "▴" : "▾"}</span>
         </button>
 

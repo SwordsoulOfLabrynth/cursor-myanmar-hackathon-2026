@@ -108,10 +108,8 @@ export function Composer({
     <section className="panel composer-panel" aria-labelledby="question-heading">
       <div className="section-heading">
         <div>
-          <p className="step-label">သင့်ကို မေးပါ</p>
-          <h2 id="question-heading">
-            {customerName ? `${customerName}၊ ` : ""}ဘာလိုအပ်လဲ?
-          </h2>
+          <p className="step-label">ASK ATOM</p>
+          <h2 id="question-heading">ဘာသိချင်လဲ၊ {customerName}?</h2>
         </div>
         <span className="ai-badge"><i /> AI + rules</span>
       </div>

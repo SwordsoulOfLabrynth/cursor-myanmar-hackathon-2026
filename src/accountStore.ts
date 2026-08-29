@@ -1,6 +1,7 @@
 import type {
   CustomerContext,
   CustomerId,
+  CustomerSummary,
   HistoryEvent,
 } from "../shared/api-contract.ts";
 import { getCustomerContext } from "../shared/demoCatalog.ts";
@@ -8,6 +9,7 @@ import { getCustomerContext } from "../shared/demoCatalog.ts";
 const ACCOUNTS_KEY = "atom-mind-accounts";
 export const SESSION_KEY = "atom-mind-session";
 const DEMO_IDS = ["su-su", "ko-ko", "ma-ma"] as const;
+const DEFAULT_ACCOUNT_ID: CustomerId = "su-su";
 
 export type Account = CustomerContext & {
   isDemo: boolean;
@@ -56,49 +58,37 @@ function saveAccounts(accounts: Account[]): void {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
+export function listAccountSummaries(): CustomerSummary[] {
+  return loadAccounts().map((account) => ({
+    id: account.id,
+    displayName: account.displayName,
+    displayNameMm: account.displayNameMm,
+    phoneMasked: account.phoneMasked,
+    currentPlanNameMm: account.currentPlan.nameMm,
+    oneLinerMm: account.preferencesMm.join(" · "),
+  }));
+}
+
 export function getAccount(accountId: CustomerId): Account | null {
   return loadAccounts().find((account) => account.id === accountId) ?? null;
 }
 
-export function getSessionAccount(): Account | null {
-  const accountId = localStorage.getItem(SESSION_KEY);
-  return accountId ? getAccount(accountId) : null;
+export function getSelectedAccountId(): CustomerId {
+  return localStorage.getItem(SESSION_KEY) ?? DEFAULT_ACCOUNT_ID;
 }
 
-export function startSession(accountId: CustomerId): Account | null {
+export function getSelectedAccount(): Account {
+  const selectedId = getSelectedAccountId();
+  return (
+    getAccount(selectedId) ??
+    getAccount(DEFAULT_ACCOUNT_ID) ??
+    seedAccounts()[0]!
+  );
+}
+
+export function selectAccount(accountId: CustomerId): Account | null {
   const account = getAccount(accountId);
   if (account) localStorage.setItem(SESSION_KEY, account.id);
-  return account;
-}
-
-export function endSession(): void {
-  localStorage.removeItem(SESSION_KEY);
-}
-
-export function createAccount(name: string, phone: string): Account {
-  const starter = cloneContext(getCustomerContext("ma-ma"));
-  const normalizedName = name.trim();
-  const normalizedPhone = phone.replace(/\s+/g, " ").trim();
-  const id = `account-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const account: Account = {
-    ...starter,
-    id,
-    displayName: normalizedName,
-    displayNameMm: normalizedName,
-    phoneMasked: normalizedPhone,
-    previousPlanNameMm: "Starter synthetic profile",
-    history: [
-      {
-        id: `created-${Date.now()}`,
-        dateLabel: new Date().toISOString().slice(0, 10),
-        eventMm: "Hackathon demo အကောင့် ဖန်တီးထားသည်",
-        eventEn: "Created hackathon demo account",
-      },
-    ],
-    isDemo: false,
-  };
-  const accounts = [...loadAccounts(), account];
-  saveAccounts(accounts);
   return account;
 }
 

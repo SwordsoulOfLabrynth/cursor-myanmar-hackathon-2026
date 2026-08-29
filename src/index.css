@@ -37,7 +37,8 @@ body {
 }
 
 button,
-textarea {
+textarea,
+input {
   font: inherit;
 }
 
@@ -1451,8 +1452,239 @@ footer {
   text-align: center;
 }
 
+.logout-button {
+  margin-left: auto;
+  padding: 7px 11px;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 999px;
+  color: #dce4ff;
+  background: transparent;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: min(430px, 100%);
+  margin: -18px 0 18px;
+  padding: 14px 16px;
+}
+
+.account-summary small,
+.account-summary strong {
+  display: block;
+}
+
+.account-summary small {
+  color: var(--ink-soft);
+  font-size: 0.56rem;
+}
+
+.account-summary strong {
+  margin-top: 2px;
+  font-size: 0.9rem;
+}
+
+.account-summary p {
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.62rem;
+}
+
+.login-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.75fr);
+  gap: clamp(28px, 6vw, 80px);
+  align-items: center;
+  width: min(1120px, calc(100% - 40px));
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 40px 0;
+}
+
+.login-hero {
+  color: var(--white);
+}
+
+.login-copy {
+  margin-top: clamp(54px, 9vw, 110px);
+}
+
+.login-copy .eyebrow {
+  color: var(--cyan);
+}
+
+.login-copy h1 {
+  max-width: 720px;
+  margin-bottom: 18px;
+  font-size: clamp(2.3rem, 6vw, 4.6rem);
+  letter-spacing: -0.055em;
+}
+
+.login-copy > p:last-child {
+  max-width: 620px;
+  color: #cbd4f1;
+  line-height: 1.8;
+}
+
+.login-warning {
+  display: grid;
+  gap: 4px;
+  max-width: 620px;
+  margin-top: 28px;
+  padding: 13px 15px;
+  border: 1px solid rgb(255 203 102 / 25%);
+  border-radius: 13px;
+  color: #d6ddf2;
+  background: rgb(255 255 255 / 6%);
+  font-size: 0.65rem;
+  line-height: 1.6;
+}
+
+.login-warning strong {
+  color: var(--mango);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-panel {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--white);
+  box-shadow: 0 24px 70px rgb(8 17 51 / 25%);
+}
+
+.login-panel h2 {
+  margin-bottom: 7px;
+  font-size: 1.35rem;
+}
+
+.login-help {
+  margin-bottom: 18px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.65;
+}
+
+.login-accounts {
+  display: grid;
+  gap: 9px;
+}
+
+.login-account {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink);
+  background: #f8f9fc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.login-account:hover {
+  border-color: #aebbef;
+  background: #f2f4ff;
+  transform: translateY(-1px);
+}
+
+.login-account strong,
+.login-account small {
+  display: block;
+}
+
+.login-account strong {
+  font-size: 0.83rem;
+}
+
+.login-account small {
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 0.58rem;
+}
+
+.login-account b {
+  color: var(--blue);
+}
+
+.create-toggle {
+  width: 100%;
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px dashed #cbd2e2;
+  border-radius: 11px;
+  color: var(--blue);
+  background: transparent;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.create-form {
+  display: grid;
+  gap: 11px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.create-form label {
+  color: var(--ink-soft);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.create-form input {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 10px 11px;
+  border: 1px solid #cfd5e3;
+  border-radius: 10px;
+  color: var(--ink);
+  outline: none;
+  background: #fbfcfe;
+  font-size: 0.72rem;
+}
+
+.create-form input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgb(49 88 255 / 12%);
+}
+
+.create-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+}
+
+.create-actions > button:first-child {
+  padding: 9px;
+  border: 0;
+  color: var(--ink-soft);
+  background: transparent;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.create-actions .primary {
+  margin-top: 0;
+  padding: 10px 12px;
+  font-size: 0.65rem;
+}
+
 button:focus-visible,
 textarea:focus-visible,
+input:focus-visible,
 summary:focus-visible {
   outline: 3px solid var(--mango);
   outline-offset: 3px;
@@ -1474,6 +1706,24 @@ summary:focus-visible {
 
   .app-shell {
     padding: 0 14px 32px;
+  }
+
+  .login-shell {
+    grid-template-columns: 1fr;
+    width: min(100% - 28px, 560px);
+    padding: 20px 0 36px;
+  }
+
+  .login-copy {
+    margin-top: 48px;
+  }
+
+  .login-copy h1 {
+    font-size: clamp(2.2rem, 12vw, 3.4rem);
+  }
+
+  .login-panel {
+    padding: 20px;
   }
 
   .hero {

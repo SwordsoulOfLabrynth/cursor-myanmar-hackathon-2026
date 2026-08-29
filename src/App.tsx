@@ -1,34 +1,29 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { mynextApi } from "./api/mynextApi.ts";
+import {
+  appendHistory,
+  createAccount,
+  endSession,
+  getSessionAccount,
+  loadAccounts,
+  startSession,
+  type Account,
+} from "./accountStore.ts";
 import { Composer } from "./components/Composer.tsx";
-import { CompareDemo } from "./components/CompareDemo.tsx";
-import { ProfileSwitcher } from "./components/ProfileSwitcher.tsx";
+import { LoginScreen } from "./components/LoginScreen.tsx";
 import { RecommendationPanel } from "./components/RecommendationPanel.tsx";
 import { UsagePanel } from "./components/UsagePanel.tsx";
-import type {
-  CustomerContext,
-  CustomerId,
-  CustomerSummary,
-  RecommendResponse,
-} from "../shared/api-contract.ts";
+import type { RecommendResponse } from "../shared/api-contract.ts";
 
 const DEMO_QUESTION =
   "ဒီလ data ခဏခဏကုန်နေလို့ ဘာ package သုံးသင့်လဲ?";
 
 export default function App() {
-  const [summaries, setSummaries] = useState<CustomerSummary[] | null>(null);
-  const [customerId, setCustomerId] = useState<CustomerId>("su-su");
-  const [context, setContext] = useState<CustomerContext | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>(loadAccounts);
+  const [context, setContext] = useState<Account | null>(getSessionAccount);
   const [message, setMessage] = useState(DEMO_QUESTION);
   const [recommendation, setRecommendation] =
     useState<RecommendResponse | null>(null);
-  const [compareOpen, setCompareOpen] = useState(false);
-  const [compareResults, setCompareResults] = useState<{
-    suSu: RecommendResponse | null;
-    koKo: RecommendResponse | null;
-  }>({ suSu: null, koKo: null });
-  const [compareLoading, setCompareLoading] = useState(false);
-  const [compareLoaded, setCompareLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionComplete, setActionComplete] = useState(false);
@@ -36,48 +31,28 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const recommendationRef = useRef<HTMLDivElement>(null);
 
-  const load = async (id: CustomerId) => {
-    setLoadError(null);
-    const [list, ctx] = await Promise.all([
-      mynextApi.listCustomers(),
-      mynextApi.getCustomerContext(id),
-    ]);
-    setSummaries(list);
-    setContext(ctx);
-    setCustomerId(id);
+  const login = (accountId: string) => {
+    const account = startSession(accountId);
+    if (!account) return;
+    setContext(account);
     setRecommendation(null);
     setActionComplete(false);
     setToast(null);
   };
 
-  const runComparison = async () => {
-    setCompareLoading(true);
-    setCompareResults({ suSu: null, koKo: null });
-    try {
-      const [suSu, koKo] = await Promise.all([
-        mynextApi.recommend({ customerId: "su-su", message: DEMO_QUESTION }),
-        mynextApi.recommend({ customerId: "ko-ko", message: DEMO_QUESTION }),
-      ]);
-      setCompareResults({ suSu, koKo });
-      setCompareLoaded(true);
-    } catch {
-      setLoadError("နှိုင်းယှဉ် demo ကို မဖွင့်နိုင်သေးပါ။ ထပ်စမ်းကြည့်ပါ။");
-    } finally {
-      setCompareLoading(false);
-    }
+  const createAndLogin = (name: string, phone: string) => {
+    const account = createAccount(name, phone);
+    setAccounts(loadAccounts());
+    login(account.id);
   };
 
-  useEffect(() => {
-    void load("su-su").catch(() =>
-      setLoadError("အကောင့် အချက်အလက် မဖွင့်နိုင်ပါ"),
-    );
-  }, []);
-
-  const handleCompareToggle = (open: boolean) => {
-    setCompareOpen(open);
-    if (open && !compareLoaded && !compareLoading) {
-      void runComparison();
-    }
+  const logout = () => {
+    endSession();
+    setContext(null);
+    setRecommendation(null);
+    setActionComplete(false);
+    setToast(null);
+    setLoadError(null);
   };
 
   const requestRecommendation = (messageOverride?: string) => {
@@ -95,27 +70,39 @@ export default function App() {
       });
     }, 80);
     void mynextApi
-      .recommend({ customerId, message: requestedMessage.trim() })
+      .recommend({
+        customerId: context.id,
+        message: requestedMessage.trim(),
+        customerContext: context,
+      })
       .then(setRecommendation)
       .catch(() =>
         setLoadError(
-          "အကြံပြုချက် မရသေးပါ။ အင်တာနက်လိုင်း စစ်ပြီး ထပ်ကြိုးစားပါ။",
+          "အကြံပြုချက် မရသေးပါ။ Offline rules fallback ကို ထပ်စမ်းကြည့်ပါ။",
         ),
       )
       .finally(() => setLoading(false));
   };
 
   const confirmRecommendation = () => {
-    if (!recommendation || actionLoading || actionComplete) return;
+    if (!context || !recommendation || actionLoading || actionComplete) return;
     setActionLoading(true);
     setLoadError(null);
     void mynextApi
       .confirmAction({
-        customerId,
+        customerId: context.id,
         recommendationId: recommendation.recommendationId,
         actionId: recommendation.action.id,
       })
       .then((result) => {
+        const updated = appendHistory(context.id, {
+          eventMm: `Demo CTA — ${recommendation.action.labelMm}`,
+          eventEn: `Demo CTA — ${recommendation.action.labelEn}`,
+        });
+        if (updated) {
+          setContext(updated);
+          setAccounts(loadAccounts());
+        }
         setToast(result.messageMm);
         setActionComplete(result.ok);
       })
@@ -124,6 +111,16 @@ export default function App() {
       )
       .finally(() => setActionLoading(false));
   };
+
+  if (!context) {
+    return (
+      <LoginScreen
+        accounts={accounts}
+        onLogin={login}
+        onCreate={createAndLogin}
+      />
+    );
+  }
 
   return (
     <main className="app-shell">
@@ -137,13 +134,14 @@ export default function App() {
           <strong>
             ATOM Mind <small>Your Personal Telecom AI</small>
           </strong>
-          <span className="demo-pill">IN-APP</span>
+          <button className="logout-button" type="button" onClick={logout}>
+            Logout
+          </button>
         </nav>
         <div className="hero-copy">
           <p className="eyebrow">သင့် ATOM အကောင့်အတွက် ကိုယ်ပိုင် အကြံပေး</p>
           <h1>
-            {context ? `${context.displayNameMm}၊ ` : ""}
-            မေးလိုက်ပါ။
+            {context.displayNameMm}၊ မေးလိုက်ပါ။
             <br />
             သင့် plan အတွက်ပဲ ဖြေပေးမယ်။
           </h1>
@@ -154,50 +152,44 @@ export default function App() {
         </div>
         <p className="synthetic-note">
           <span aria-hidden="true">◆</span>
-          Hackathon concept · one subscriber view · synthetic data only — not an
-          official ATOM product.
+          Hackathon concept · one subscriber view · synthetic data only ·
+          local demo session — not an official ATOM product.
         </p>
       </header>
 
+      <section className="panel account-summary" aria-label="လက်ရှိအကောင့်">
+        <span className="avatar" aria-hidden="true">
+          {context.displayName.slice(0, 1).toUpperCase()}
+        </span>
+        <div>
+          <small>လက်ရှိဝင်ထားသော demo အကောင့်</small>
+          <strong>{context.displayNameMm}</strong>
+          <p>{context.phoneMasked} · {context.currentPlan.nameMm}</p>
+        </div>
+      </section>
+
       <div className="content-grid">
         <div className="context-column">
-          <ProfileSwitcher
-            summaries={summaries}
-            selectedId={customerId}
-            onSelect={(id) => {
-              void load(id).catch(() =>
-                setLoadError("အကောင့် ပြောင်း၍ မရသေးပါ။ ထပ်ကြိုးစားပါ။"),
-              );
+          <UsagePanel
+            context={context}
+            disabled={loading}
+            onAutoRecommend={() => {
+              const analyzerQuestion =
+                "ကျွန်တော့် usage analyzer အရ အခု ဘာလုပ်သင့်လဲ?";
+              setMessage(analyzerQuestion);
+              requestRecommendation(analyzerQuestion);
             }}
           />
-
-          {context ? (
-            <UsagePanel
-              context={context}
-              disabled={loading}
-              onAutoRecommend={() => {
-                const analyzerQuestion =
-                  "ကျွန်တော့် usage analyzer အရ အခု ဘာလုပ်သင့်လဲ?";
-                setMessage(analyzerQuestion);
-                requestRecommendation(analyzerQuestion);
-              }}
-            />
-          ) : (
-            <section className="panel panel-skeleton" aria-busy="true">
-              အကောင့်အချက်အလက် ဖွင့်နေသည်…
-            </section>
-          )}
         </div>
 
         <div className="decision-column">
           <Composer
             message={message}
-            customerName={context?.displayNameMm ?? ""}
+            customerName={context.displayNameMm}
             onMessageChange={setMessage}
-            disabled={loading || !context}
+            disabled={loading}
             onSubmit={() => requestRecommendation()}
           />
-
           <div ref={recommendationRef}>
             <RecommendationPanel
               loading={loading}
@@ -210,16 +202,6 @@ export default function App() {
         </div>
       </div>
 
-      <CompareDemo
-        question={DEMO_QUESTION}
-        suSu={compareResults.suSu}
-        koKo={compareResults.koKo}
-        loading={compareLoading}
-        open={compareOpen}
-        onToggle={handleCompareToggle}
-        onReplay={() => void runComparison()}
-      />
-
       {loadError ? (
         <div className="error-banner" role="alert">
           <strong>ဆက်လုပ်၍ မရသေးပါ</strong>
@@ -229,25 +211,20 @@ export default function App() {
 
       {toast ? (
         <div className="toast" role="status" aria-live="polite">
-          <span className="toast-check" aria-hidden="true">
-            ✓
-          </span>
+          <span className="toast-check" aria-hidden="true">✓</span>
           <div>
-            <strong>ATOM app ထဲမှာ နောက်တစ်ဆင့်</strong>
+            <strong>Demo history မှာ သိမ်းထားပါပြီ</strong>
             <p>{toast}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            aria-label="ပိတ်မည်"
-          >
+          <button type="button" onClick={() => setToast(null)} aria-label="ပိတ်မည်">
             ×
           </button>
         </div>
       ) : null}
 
       <footer>
-        ATOM Mind · Your Personal Telecom AI · hackathon concept · synthetic data only
+        ATOM Mind · hackathon concept · synthetic data only · login is not
+        production-secure
       </footer>
     </main>
   );

@@ -12,7 +12,7 @@
  *   confirmAction({ customerId, recommendationId, actionId })  // demo only
  */
 
-export type CustomerId = "su-su" | "ko-ko" | "ma-ma";
+export type CustomerId = string;
 
 export type IntentLabel =
   | "data_need"
@@ -87,6 +87,7 @@ export type CustomerContext = {
 export type RecommendRequest = {
   customerId: CustomerId;
   message: string;
+  customerContext?: CustomerContext;
 };
 
 export type RecommendIntent = {

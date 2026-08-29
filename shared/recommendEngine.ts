@@ -354,7 +354,8 @@ function recommendationSignalsMm(
 }
 
 export function recommend(request: RecommendRequest): RecommendResponse {
-  const customer = getCustomerContext(request.customerId);
+  const customer =
+    request.customerContext ?? getCustomerContext(request.customerId);
   const intent = detectIntent(request.message);
   const usedPct = dataPct(customer);
 

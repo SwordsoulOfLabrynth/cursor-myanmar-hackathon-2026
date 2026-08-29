@@ -69,7 +69,7 @@ export default function App() {
 
   useEffect(() => {
     void load("su-su").catch(() =>
-      setLoadError("ဖောက်သည် အချက်အလက် မဖွင့်နိုင်ပါ"),
+      setLoadError("အကောင့် အချက်အလက် မဖွင့်နိုင်ပါ"),
     );
   }, []);
 
@@ -137,24 +137,25 @@ export default function App() {
           <strong>
             ATOM Mind <small>Your Personal Telecom AI</small>
           </strong>
-          <span className="demo-pill">DEMO</span>
+          <span className="demo-pill">IN-APP</span>
         </nav>
         <div className="hero-copy">
-          <p className="eyebrow">ATOM အက်ပ်ထဲက သင့်ကိုယ်ပိုင် အကြံပေး</p>
+          <p className="eyebrow">သင့် ATOM အကောင့်အတွက် ကိုယ်ပိုင် အကြံပေး</p>
           <h1>
+            {context ? `${context.displayNameMm}၊ ` : ""}
             မေးလိုက်ပါ။
             <br />
-            သင့်အတွက်ပဲ ဖြေပေးမယ်။
+            သင့် plan အတွက်ပဲ ဖြေပေးမယ်။
           </h1>
           <p>
-            သုံးစွဲမှု၊ အစီအစဉ်နဲ့ မှတ်တမ်းကို စစ်ပြီး နောက်တစ်ဆင့်ကို
+            လက်ရှိ သုံးစွဲမှုနဲ့ အစီအစဉ်ကို စစ်ပြီး နောက်တစ်ဆင့်ကို
             အကြောင်းပြချက်နဲ့ ပြောပေးပါတယ်။
           </p>
         </div>
         <p className="synthetic-note">
           <span aria-hidden="true">◆</span>
-          Hackathon concept · synthetic demo data only — not an official ATOM
-          product.
+          Hackathon concept · one subscriber view · synthetic data only — not an
+          official ATOM product.
         </p>
       </header>
 
@@ -165,7 +166,7 @@ export default function App() {
             selectedId={customerId}
             onSelect={(id) => {
               void load(id).catch(() =>
-                setLoadError("ဖောက်သည် ပြောင်း၍ မရသေးပါ။ ထပ်ကြိုးစားပါ။"),
+                setLoadError("အကောင့် ပြောင်း၍ မရသေးပါ။ ထပ်ကြိုးစားပါ။"),
               );
             }}
           />
@@ -183,7 +184,7 @@ export default function App() {
             />
           ) : (
             <section className="panel panel-skeleton" aria-busy="true">
-              ဖောက်သည်အချက်အလက် ဖွင့်နေသည်…
+              အကောင့်အချက်အလက် ဖွင့်နေသည်…
             </section>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import type { CustomerId, CustomerSummary } from "../../shared/api-contract.ts";
 
 type Props = {
@@ -7,44 +8,91 @@ type Props = {
 };
 
 export function ProfileSwitcher({ summaries, selectedId, onSelect }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+
   if (!summaries) {
     return (
-      <section className="panel panel-skeleton" aria-busy="true">
-        Demo ဖောက်သည် ၃ ဦး ဖွင့်နေသည်…
+      <section className="panel panel-skeleton account-panel" aria-busy="true">
+        အကောင့် ဖွင့်နေသည်…
       </section>
     );
   }
 
+  const selected =
+    summaries.find((customer) => customer.id === selectedId) ?? summaries[0];
+  if (!selected) {
+    return null;
+  }
+
   return (
-    <section className="panel profile-panel" aria-labelledby="profile-heading">
-      <div className="section-heading">
-        <div>
-          <p className="step-label">အဆင့် ၁</p>
-          <h2 id="profile-heading">ဘယ်သူ့အတွက်လဲ?</h2>
+    <section className="panel account-panel" aria-labelledby="account-heading">
+      <div className="account-header">
+        <span className="avatar account-avatar" aria-hidden="true">
+          {selected.displayNameMm.slice(0, 1)}
+        </span>
+        <div className="account-copy">
+          <p className="account-eyebrow">သင့် ATOM အကောင့်</p>
+          <h2 id="account-heading">{selected.displayNameMm}</h2>
+          <p className="account-meta">
+            <span>{selected.phoneMasked}</span>
+            <span aria-hidden="true">·</span>
+            <span>{selected.currentPlanNameMm}</span>
+          </p>
         </div>
-        <span className="synthetic-tag">Synthetic profiles</span>
       </div>
-      <div className="profile-row" role="group" aria-label="Demo ဖောက်သည်ရွေးရန်">
-        {summaries.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={c.id === selectedId ? "profile selected" : "profile"}
-            onClick={() => onSelect(c.id)}
-            aria-pressed={c.id === selectedId}
+
+      <div className="demo-account">
+        <button
+          type="button"
+          className="demo-account-toggle"
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span>Demo account · စာရင်းပြောင်း</span>
+          <span aria-hidden="true">{menuOpen ? "▴" : "▾"}</span>
+        </button>
+
+        {menuOpen ? (
+          <div
+            id={menuId}
+            className="demo-account-menu"
+            role="listbox"
+            aria-label="Demo အကောင့် ရွေးရန်"
           >
-            <span className="avatar" aria-hidden="true">
-              {c.displayNameMm.slice(0, 1)}
-            </span>
-            <span className="profile-copy">
-              <strong>{c.displayNameMm}</strong>
-              <small>{c.oneLinerMm}</small>
-            </span>
-            <span className="profile-check" aria-hidden="true">
-              ✓
-            </span>
-          </button>
-        ))}
+            {summaries.map((customer) => {
+              const active = customer.id === selectedId;
+              return (
+                <button
+                  key={customer.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={
+                    active ? "demo-account-option selected" : "demo-account-option"
+                  }
+                  onClick={() => {
+                    onSelect(customer.id);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="demo-account-option-copy">
+                    <strong>{customer.displayNameMm}</strong>
+                    <small>
+                      {customer.phoneMasked} · {customer.currentPlanNameMm}
+                    </small>
+                  </span>
+                  {active ? (
+                    <span className="demo-account-check" aria-hidden="true">
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </section>
   );

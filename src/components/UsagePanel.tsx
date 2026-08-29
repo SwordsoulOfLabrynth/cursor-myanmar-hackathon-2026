@@ -26,8 +26,8 @@ export function UsagePanel({ context, onAutoRecommend, disabled }: Props) {
     <section className="panel usage-panel" aria-labelledby="usage-heading">
       <div className="section-heading">
         <div>
-          <p className="step-label">သင့် usage အပေါ် အခြေခံပြီး</p>
-          <h2 id="usage-heading">{context.displayNameMm} ရဲ့ plan ကို စစ်ထားတယ်</h2>
+          <p className="step-label">Usage Analyzer</p>
+          <h2 id="usage-heading">သင့် plan ကို စစ်ထားတယ်</h2>
         </div>
         <div className="plan-badge">
           <small>လက်ရှိအစီအစဉ်</small>

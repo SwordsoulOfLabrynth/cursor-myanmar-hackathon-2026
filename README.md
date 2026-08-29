@@ -28,9 +28,11 @@ the same recommendation contract without typing.
 
 Personalization proof (same Burmese question → opposite Su Su / Ko Ko answers)
 lives in a collapsed **Demo for judges · စစ်ဆေးရန်** control at the bottom — not
-the default hero.
+the default experience. Extra synthetic profiles (Ko Ko, Ma Ma) are behind a small
+**Demo account · စာရင်းပြောင်း** control, not a multi-person first screen.
 
-This is proposed as an **in-app ATOM feature, not a rival telecom app**.
+This is proposed as an **in-app ATOM feature for the current subscriber, not a
+CRM of many customers**.
 
 ### AI usage
 
@@ -52,15 +54,15 @@ PWA service worker, Netlify Functions, Convex-compatible typed contracts.
 
 ### 90-second judge demo
 
-1. **0–25s:** Open as a customer. Show one profile, Usage Analyzer (fit score /
-   burn rate / top-ups), and the Burmese question box.
+1. **0–25s:** Open as Su Su (default logged-in subscriber). Show account header
+   (name, masked number, plan), Usage Analyzer, and the Burmese question box.
 2. **25–50s:** Submit the question (or **အလိုအလျောက် အကြံ**). Show grounded
    recommendation, cited analyzer facts, and honest LLM / rules source.
 3. **50–70s:** Confirm CTA — real ATOM app would open its confirmation screen;
    this demo never charges.
 4. **70–90s:** Expand **Demo for judges** to prove same question → Su Su gets
-   more data, Ko Ko gets more minutes. Optionally try the SIM-loss prompt to show
-   no unsafe upsell.
+   more data, Ko Ko gets more minutes. Optionally use **Demo account · စာရင်းပြောင်း**
+   or try the SIM-loss prompt to show no unsafe upsell.
 
 ## Run locally
 
@@ -69,10 +71,12 @@ npm install
 npm run dev
 ```
 
-1. Pick Su Su, Ko Ko, or Ma Ma.
-2. Review the analyzer for the selected synthetic plan.
+1. Land as Su Su — one subscriber account, not a CRM of many people.
+2. Review the Usage Analyzer for the current plan.
 3. Ask a Burmese question (or auto-recommend).
 4. See a grounded next action and demo-only confirmation.
+5. Optionally switch demo accounts via **Demo account · စာရင်းပြောင်း**, or expand
+   **Demo for judges** for same-question contrast.
 
 Also test `SIM ကတ် ပျောက်သွားတယ်၊ ဘာလုပ်ရမလဲ?` for the support path.
 

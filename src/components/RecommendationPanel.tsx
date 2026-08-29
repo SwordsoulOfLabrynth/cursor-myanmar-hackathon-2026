@@ -39,7 +39,7 @@ export function RecommendationPanel({
       <section className="recommendation-card empty">
         <span className="empty-signal" aria-hidden="true">⌁</span>
         <div>
-          <p className="step-label">အဆင့် ၃</p>
+          <p className="step-label">နောက်တစ်ဆင့်</p>
           <h2>သင့်အတွက်ပဲ ရွေးထားတဲ့ အကြံ</h2>
           <p>အပေါ်မှာ မေးခွန်းတစ်ခု ပို့လိုက်တာနဲ့ အကြောင်းပြချက်ပါ အကြံပြုချက် ဒီနေရာမှာ ပေါ်လာပါမယ်။</p>
         </div>

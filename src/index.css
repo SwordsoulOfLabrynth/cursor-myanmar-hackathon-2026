@@ -415,36 +415,22 @@ h3 {
   box-shadow: 0 0 0 3px rgb(12 141 114 / 12%);
 }
 
-.profile-row {
-  display: grid;
-  gap: 8px;
+.account-panel {
+  padding-bottom: 16px;
 }
 
-.profile {
+.account-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
   align-items: center;
-  width: 100%;
-  padding: 11px;
-  border: 1px solid var(--line);
+}
+
+.account-avatar {
+  width: 48px;
+  height: 48px;
   border-radius: 15px;
-  color: var(--ink);
-  background: var(--white);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-
-.profile:hover {
-  border-color: #b9c3da;
-  transform: translateY(-1px);
-}
-
-.profile.selected {
-  border-color: var(--blue);
-  background: #f3f5ff;
-  box-shadow: inset 3px 0 var(--blue);
+  font-size: 1.05rem;
 }
 
 .avatar {
@@ -458,52 +444,114 @@ h3 {
   font-weight: 800;
 }
 
-.profile:nth-child(2) .avatar {
-  background: #294d85;
-  color: #d7e5ff;
-}
-
-.profile:nth-child(3) .avatar {
-  background: #69425f;
-  color: #ffe0f3;
-}
-
-.profile-copy {
+.account-copy {
   min-width: 0;
 }
 
-.profile-copy strong,
-.profile-copy small {
-  display: block;
-}
-
-.profile-copy strong {
-  margin-bottom: 3px;
-  font-size: 0.91rem;
-}
-
-.profile-copy small {
-  overflow: hidden;
+.account-eyebrow {
+  margin: 0 0 3px;
   color: var(--ink-soft);
-  font-size: 0.69rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
-.profile-check {
-  display: grid;
-  place-items: center;
-  width: 21px;
-  height: 21px;
-  border-radius: 50%;
-  color: transparent;
-  background: #eef1f7;
+.account-copy h2 {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.account-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 5px 0 0;
+  color: var(--ink-soft);
   font-size: 0.72rem;
 }
 
-.profile.selected .profile-check {
-  color: var(--white);
-  background: var(--blue);
+.demo-account {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.demo-account-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  border: 0;
+  color: #6b758c;
+  background: transparent;
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.demo-account-toggle:hover {
+  color: var(--blue);
+}
+
+.demo-account-menu {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.demo-account-option {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  color: var(--ink);
+  background: #f8f9fc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.demo-account-option:hover {
+  border-color: #b9c3da;
+  background: var(--white);
+}
+
+.demo-account-option.selected {
+  border-color: #c9d2ef;
+  background: #f3f5ff;
+}
+
+.demo-account-option-copy {
+  min-width: 0;
+}
+
+.demo-account-option-copy strong,
+.demo-account-option-copy small {
+  display: block;
+}
+
+.demo-account-option-copy strong {
+  font-size: 0.78rem;
+}
+
+.demo-account-option-copy small {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 0.58rem;
+}
+
+.demo-account-check {
+  flex: none;
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .plan-badge {
@@ -1510,6 +1558,10 @@ summary:focus-visible {
 
   .synthetic-tag {
     display: none;
+  }
+
+  .account-meta {
+    font-size: 0.66rem;
   }
 
   .plan-badge {

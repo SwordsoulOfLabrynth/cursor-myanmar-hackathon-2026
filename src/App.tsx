@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mynextApi } from "./api/mynextApi.ts";
 import { Composer } from "./components/Composer.tsx";
 import { ProfileSwitcher } from "./components/ProfileSwitcher.tsx";
@@ -22,8 +22,11 @@ export default function App() {
   const [recommendation, setRecommendation] =
     useState<RecommendResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionComplete, setActionComplete] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const recommendationRef = useRef<HTMLDivElement>(null);
 
   const load = async (id: CustomerId) => {
     setLoadError(null);
@@ -35,6 +38,7 @@ export default function App() {
     setContext(ctx);
     setCustomerId(id);
     setRecommendation(null);
+    setActionComplete(false);
     setToast(null);
   };
 
@@ -44,83 +48,142 @@ export default function App() {
     );
   }, []);
 
+  const requestRecommendation = () => {
+    if (!context || !message.trim()) return;
+    setLoading(true);
+    setLoadError(null);
+    setToast(null);
+    setActionComplete(false);
+    setRecommendation(null);
+    window.setTimeout(() => {
+      recommendationRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
+    void mynextApi
+      .recommend({ customerId, message: message.trim() })
+      .then(setRecommendation)
+      .catch(() =>
+        setLoadError(
+          "အကြံပြုချက် မရသေးပါ။ အင်တာနက်လိုင်း စစ်ပြီး ထပ်ကြိုးစားပါ။",
+        ),
+      )
+      .finally(() => setLoading(false));
+  };
+
+  const confirmRecommendation = () => {
+    if (!recommendation || actionLoading || actionComplete) return;
+    setActionLoading(true);
+    setLoadError(null);
+    void mynextApi
+      .confirmAction({
+        customerId,
+        recommendationId: recommendation.recommendationId,
+        actionId: recommendation.action.id,
+      })
+      .then((result) => {
+        setToast(result.messageMm);
+        setActionComplete(result.ok);
+      })
+      .catch(() =>
+        setLoadError("Demo လုပ်ဆောင်ချက် မပြီးသေးပါ။ ထပ်ကြိုးစားပါ။"),
+      )
+      .finally(() => setActionLoading(false));
+  };
+
   return (
-    <div className="shell">
-      <header className="topbar">
-        <p className="kicker">MyNext · mock API</p>
-        <h1>မြန်မာစကားပြော concierge</h1>
-        <p className="lede">
-          Chatbot FAQ မဟုတ်။ ရွေးထားသော ဖောက်သည်ရဲ့ plan, usage, မှတ်တမ်းကို
-          ပေါင်းပြီး နောက်တစ်ဆင့် ပေးသည်။
-        </p>
-        <p className="disclaimer">
-          Synthetic demo data only — not real ATOM customer records.
+    <main className="app-shell">
+      <header className="hero">
+        <nav className="brandbar" aria-label="NeeNee AI">
+          <div className="brandmark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <strong>နီးနီး <small>NeeNee AI</small></strong>
+          <span className="demo-pill">DEMO</span>
+        </nav>
+        <div className="hero-copy">
+          <p className="eyebrow">ATOM MyNext challenge concept</p>
+          <h1>မေးလိုက်ပါ။<br />သင့်အတွက်ပဲ ဖြေပေးမယ်။</h1>
+          <p>
+            လက်ရှိအစီအစဉ်၊ သုံးစွဲမှုနဲ့ မှတ်တမ်းကို ပေါင်းစပ်ပြီး
+            နောက်တစ်ဆင့်ကို အကြောင်းပြချက်နဲ့ ပြောပေးပါတယ်။
+          </p>
+        </div>
+        <p className="synthetic-note">
+          <span aria-hidden="true">◆</span>
+          စမ်းသပ်ဖန်တီးထားသော အချက်အလက်များသာ — ATOM ၏ တကယ့်ဖောက်သည်
+          အချက်အလက် မဟုတ်ပါ။
         </p>
       </header>
 
-      {loadError ? <p className="error">{loadError}</p> : null}
+      <div className="content-grid">
+        <div className="context-column">
+          <ProfileSwitcher
+            summaries={summaries}
+            selectedId={customerId}
+            onSelect={(id) => {
+              void load(id).catch(() =>
+                setLoadError("ဖောက်သည် ပြောင်း၍ မရသေးပါ။ ထပ်ကြိုးစားပါ။"),
+              );
+            }}
+          />
 
-      <ProfileSwitcher
-        summaries={summaries}
-        selectedId={customerId}
-        onSelect={(id) => {
-          void load(id).catch(() => setLoadError("ပြောင်းလဲမှု မအောင်မြင်ပါ"));
-        }}
-      />
+          {context ? (
+            <UsagePanel context={context} />
+          ) : (
+            <section className="panel panel-skeleton" aria-busy="true">
+              ဖောက်သည်အချက်အလက် ဖွင့်နေသည်…
+            </section>
+          )}
+        </div>
 
-      {context ? (
-        <UsagePanel context={context} />
-      ) : (
-        <p className="muted">ဖွင့်နေသည်…</p>
-      )}
+        <div className="decision-column">
+          <Composer
+            message={message}
+            customerName={context?.displayNameMm ?? ""}
+            onMessageChange={setMessage}
+            disabled={loading || !context}
+            onSubmit={requestRecommendation}
+          />
 
-      <Composer
-        message={message}
-        onMessageChange={setMessage}
-        disabled={loading || !context}
-        onSubmit={() => {
-          if (!context) return;
-          setLoading(true);
-          setToast(null);
-          void mynextApi
-            .recommend({ customerId, message })
-            .then(setRecommendation)
-            .catch(() => setLoadError("အကြံပေးချက် မရပါ"))
-            .finally(() => setLoading(false));
-        }}
-      />
+          <div ref={recommendationRef}>
+            <RecommendationPanel
+              loading={loading}
+              recommendation={recommendation}
+              actionLoading={actionLoading}
+              actionComplete={actionComplete}
+              onAction={confirmRecommendation}
+            />
+          </div>
+        </div>
+      </div>
 
-      <RecommendationPanel
-        loading={loading}
-        recommendation={recommendation}
-        onAction={() => {
-          if (!recommendation) return;
-          void mynextApi
-            .confirmAction({
-              customerId,
-              recommendationId: recommendation.recommendationId,
-              actionId: recommendation.action.id,
-            })
-            .then((result) => setToast(result.messageMm));
-        }}
-      />
-
-      {toast ? (
-        <p className="toast" role="status" aria-live="polite">
-          {toast}
-        </p>
+      {loadError ? (
+        <div className="error-banner" role="alert">
+          <strong>ဆက်လုပ်၍ မရသေးပါ</strong>
+          <span>{loadError}</span>
+        </div>
       ) : null}
 
-      <FooterNote customerId={customerId} />
-    </div>
-  );
-}
+      {toast ? (
+        <div className="toast" role="status" aria-live="polite">
+          <span className="toast-check" aria-hidden="true">✓</span>
+          <div>
+            <strong>Demo လုပ်ဆောင်ချက် ပြီးပါပြီ</strong>
+            <p>{toast}</p>
+          </div>
+          <button type="button" onClick={() => setToast(null)} aria-label="ပိတ်မည်">
+            ×
+          </button>
+        </div>
+      ) : null}
 
-function FooterNote({ customerId }: { customerId: CustomerId }) {
-  const hint = useMemo(() => {
-    if (customerId === "su-su") return "စုစု + data မေးခွန်း → ၃၀ GB";
-    if (customerId === "ko-ko") return "ကိုကို + data မေးခွန်း → ဖုန်းမိနစ် ပက်ကေ့ချ်";
-    return "မမ + data မေးခွန်း → ၁၀ GB ဆက် / upsell မလုပ်";
-  }, [customerId]);
-  return <p className="hint">{hint}</p>;
+      <footer>
+        နီးနီး · NeeNee AI · ATOM MyNext challenge concept · Synthetic data only
+      </footer>
+    </main>
+  );
 }

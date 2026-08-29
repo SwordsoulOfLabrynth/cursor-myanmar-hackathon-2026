@@ -1,0 +1,18 @@
+{
+  "name": "နီးနီး · NeeNee AI",
+  "short_name": "နီးနီး",
+  "description": "Synthetic Burmese-first telecom concierge demo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#101b45",
+  "lang": "my",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

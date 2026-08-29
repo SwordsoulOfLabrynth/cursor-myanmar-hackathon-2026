@@ -1,50 +1,74 @@
-# MyNext AI — Burmese hyper-personalized concierge
+# နီးနီး · NeeNee AI
 
-Hackathon prototype. **Synthetic demo data only** — not real ATOM customers.
+**ATOM MyNext challenge concept:** a Burmese-first, hyper-personalized telecom
+companion that turns intent, usage, and service history into a grounded next
+action.
 
-Public repo: https://github.com/SwordsoulOfLabrynth/cursor-myanmar-hackathon-2026
+Mobile-first hackathon MVP. **Every customer, usage event, and recommendation
+shown here is synthetic demo data — never real ATOM customer data.** This is an
+independent concept demo and does not claim official ATOM affiliation.
 
-## Run (frontend + mock API)
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the Vite URL. Core flow: pick a customer → Burmese question → Next-Action card → action toast.
+Open the Vite URL. The core demo is:
 
-Same question, three customers, three different recommendations.
+1. Pick Su Su, Ko Ko, or Ma Ma.
+2. Review the selected synthetic plan, usage, and history.
+3. Ask the same Burmese data question.
+4. See a different grounded recommendation, explicit “why,” cited customer
+   facts, and a demo-only confirmation for each profile.
 
-## API contract
+Also test `SIM ကတ် ပျောက်သွားတယ်၊ ဘာလုပ်ရမလဲ?` to see the support path avoid
+an inappropriate package upsell.
 
-Source of truth: [`shared/api-contract.ts`](shared/api-contract.ts)
+Tap **အသံဖြင့် မေးမည်** to dictate in Burmese where Web Speech is available.
+Unsupported browsers show a clear typed-input fallback, so voice never blocks
+the core demo.
 
-| Function | Purpose |
-|---|---|
-| `listCustomers()` | Demo profile list |
-| `getCustomerContext(customerId)` | Plan + usage + history |
-| `listPackages()` | Catalog |
-| `recommend({ customerId, message })` | Intent + grounded card |
-| `confirmAction(...)` | Demo CTA only (toast, no payment) |
+## AI architecture
 
-Frontend currently uses [`src/api/mynextApi.ts`](src/api/mynextApi.ts) (mock). It returns the **same** `RecommendResponse` as Convex.
+- `shared/api-contract.ts` is the single frontend/backend response contract.
+- `shared/recommendEngine.ts` provides Burmese intent handling and a
+  deterministic grounded fallback.
+- `netlify/functions/recommend.ts` optionally calls an LLM server-side. The model
+  may improve Burmese explanations, but the rules engine locks the selected
+  package, package ID, action, and cited facts.
+- If no `OPENAI_API_KEY` is configured, or the model call fails, the UI
+  automatically uses the same response contract from the rules engine.
 
-## Backend (Developer 1)
+Copy `.env.example` only when setting server-side environment variables. Never
+put a secret in a `VITE_` variable.
+
+## Quality checks
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Convex stubs use validators for public arguments and return values. For backend
+development, use:
 
 ```bash
 npx convex dev
 ```
 
-Then point the UI at Convex (next slice). Functions:
+No authentication is present because this MVP contains no user accounts and no
+real customer records. CTA actions are simulated; no payment or plan change is
+performed.
 
-- `catalog.listDemoCustomers`
-- `catalog.getDemoCustomer`
-- `catalog.listDemoPackages`
-- `recommend.recommend`
+## Deploy to Netlify
 
-Engine: [`shared/recommendEngine.ts`](shared/recommendEngine.ts) — do not fork a second JSON shape.
+The repository includes `netlify.toml`. After authenticating the Netlify CLI:
 
-## Team
+```bash
+npx netlify deploy --build
+```
 
-- Backend / AI: repo owner
-- Frontend: [SnowFairy107](https://github.com/SnowFairy107) (collaborator invite sent — accept email/GitHub notification)
+Add `--prod` only when intentionally publishing the production submission.

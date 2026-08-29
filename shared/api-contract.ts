@@ -1,5 +1,5 @@
 /**
- * MyNext AI — frontend/backend API contract.
+ * NeeNee AI — frontend/backend API contract for the ATOM MyNext challenge.
  *
  * Frontend and backend MUST use these types. Mock client and Convex actions
  * return the same shapes so UI can ship before Convex/LLM is wired.

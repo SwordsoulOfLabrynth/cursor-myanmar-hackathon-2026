@@ -1,4 +1,4 @@
-const CACHE = "neenee-ai-v1";
+const CACHE = "atom-mind-v1";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/app-icon.svg", "/favicon.svg"];
 
 self.addEventListener("install", (event) => {

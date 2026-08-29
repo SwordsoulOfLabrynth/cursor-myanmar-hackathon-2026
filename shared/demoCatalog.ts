@@ -82,6 +82,7 @@ const CUSTOMERS: Record<CustomerId, CustomerContext> = {
       voiceUsedMin: 22,
       voiceAllowanceMin: 80,
       topUpsThisMonth: 3,
+      cycleDay: 29,
       cycleLabelMm: "ဒီလ ရက် ၂၉ ရက်မြောက်",
     },
     usageMix: {
@@ -131,6 +132,7 @@ const CUSTOMERS: Record<CustomerId, CustomerContext> = {
       voiceUsedMin: 98,
       voiceAllowanceMin: 100,
       topUpsThisMonth: 0,
+      cycleDay: 29,
       cycleLabelMm: "ဒီလ ရက် ၂၉ ရက်မြောက်",
     },
     usageMix: {
@@ -168,6 +170,7 @@ const CUSTOMERS: Record<CustomerId, CustomerContext> = {
       voiceUsedMin: 12,
       voiceAllowanceMin: 50,
       topUpsThisMonth: 0,
+      cycleDay: 11,
       cycleLabelMm: "ဒီလ ရက် ၁၁ ရက်မြောက် (SIM အသစ်)",
     },
     usageMix: {

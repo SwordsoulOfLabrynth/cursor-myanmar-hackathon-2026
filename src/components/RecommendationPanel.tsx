@@ -22,12 +22,12 @@ export function RecommendationPanel({
           <span />
         </div>
         <div>
-          <p className="step-label">နီးနီး AI စဉ်းစားနေသည်</p>
+          <p className="step-label">ATOM Mind စဉ်းစားနေသည်</p>
           <h2>သင့်အတွက် အကောင်းဆုံးနောက်တစ်ဆင့် ရှာနေပါတယ်…</h2>
           <ol className="analysis-steps">
-            <li className="done">မေးခွန်းရည်ရွယ်ချက် နားလည်ခြင်း</li>
-            <li className="active">သုံးစွဲမှုပုံစံနှင့် မှတ်တမ်း စစ်ခြင်း</li>
-            <li>ကိုက်ညီသည့် အကြံပြုချက် ရွေးခြင်း</li>
+            <li className="done">မေးခွန်း နားလည်ခြင်း</li>
+            <li className="active">usage analyzer စစ်ခြင်း</li>
+            <li>နောက်တစ်ဆင့် ရွေးခြင်း</li>
           </ol>
         </div>
       </section>
@@ -55,12 +55,12 @@ export function RecommendationPanel({
         <span className="intent-pill">{recommendation.intent.labelMm}</span>
         <span className="source-pill">
           <i />
-          {recommendation.source === "llm" ? "Grounded AI" : "Grounded fallback"}
+          {recommendation.source === "llm" ? "LLM + catalog guardrail" : "Explainable rules fallback"}
         </span>
       </div>
 
       <div className="decision">
-        <p className="step-label">နီးနီးရဲ့ အကြံပြုချက်</p>
+        <p className="step-label">ATOM Mind ရဲ့ အကြံပြုချက်</p>
         {pack ? (
           <>
             <h2>{pack.nameMm}</h2>
@@ -87,6 +87,13 @@ export function RecommendationPanel({
             <h3>သင့်အချက်အလက်နဲ့ ချိတ်ဆက်ထားပါတယ်</h3>
           </div>
         </div>
+        <p className="why-trail">
+          {recommendation.intent.labelMm}
+          <span aria-hidden="true"> → </span>
+          Analyzer fit {recommendation.analysis.currentPlanFitScore}/100
+          <span aria-hidden="true"> → </span>
+          {pack?.nameMm ?? "မပြောင်းသေး"}
+        </p>
         <p>{recommendation.situationMm}</p>
         <p>{recommendation.whyCurrentDoesNotFitMm}</p>
         <ul className="grounding">
@@ -120,7 +127,7 @@ export function RecommendationPanel({
         <span aria-hidden="true">{actionComplete ? "✓" : "→"}</span>
       </button>
       <p className="demo-action-note">
-        Demo သာဖြစ်ပြီး တကယ့်ငွေဖြတ်တောက်မှု သို့မဟုတ် အကောင့်ပြောင်းလဲမှု မရှိပါ။
+        ATOM app အစစ်တွင် ဤခလုတ်က အတည်ပြုစာမျက်နှာသို့ ပို့မည်။ ယခု demo တွင် ငွေမဖြတ်၊ အစီအစဉ်မပြောင်းပါ။
       </p>
     </section>
   );

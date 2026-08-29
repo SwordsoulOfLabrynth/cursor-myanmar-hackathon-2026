@@ -1,7 +1,7 @@
 {
-  "name": "နီးနီး · NeeNee AI",
-  "short_name": "နီးနီး",
-  "description": "Synthetic Burmese-first telecom concierge demo.",
+  "name": "ATOM Mind — Your Personal Telecom AI",
+  "short_name": "ATOM Mind",
+  "description": "Hackathon concept: personal telecom AI for ATOM. Synthetic demo data only.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f7fb",

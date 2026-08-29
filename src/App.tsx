@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { mynextApi } from "./api/mynextApi.ts";
 import { Composer } from "./components/Composer.tsx";
+import { CompareDemo } from "./components/CompareDemo.tsx";
 import { ProfileSwitcher } from "./components/ProfileSwitcher.tsx";
 import { RecommendationPanel } from "./components/RecommendationPanel.tsx";
 import { UsagePanel } from "./components/UsagePanel.tsx";
@@ -21,6 +22,13 @@ export default function App() {
   const [message, setMessage] = useState(DEMO_QUESTION);
   const [recommendation, setRecommendation] =
     useState<RecommendResponse | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareResults, setCompareResults] = useState<{
+    suSu: RecommendResponse | null;
+    koKo: RecommendResponse | null;
+  }>({ suSu: null, koKo: null });
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareLoaded, setCompareLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionComplete, setActionComplete] = useState(false);
@@ -42,14 +50,39 @@ export default function App() {
     setToast(null);
   };
 
+  const runComparison = async () => {
+    setCompareLoading(true);
+    setCompareResults({ suSu: null, koKo: null });
+    try {
+      const [suSu, koKo] = await Promise.all([
+        mynextApi.recommend({ customerId: "su-su", message: DEMO_QUESTION }),
+        mynextApi.recommend({ customerId: "ko-ko", message: DEMO_QUESTION }),
+      ]);
+      setCompareResults({ suSu, koKo });
+      setCompareLoaded(true);
+    } catch {
+      setLoadError("နှိုင်းယှဉ် demo ကို မဖွင့်နိုင်သေးပါ။ ထပ်စမ်းကြည့်ပါ။");
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
   useEffect(() => {
     void load("su-su").catch(() =>
       setLoadError("ဖောက်သည် အချက်အလက် မဖွင့်နိုင်ပါ"),
     );
   }, []);
 
-  const requestRecommendation = () => {
-    if (!context || !message.trim()) return;
+  const handleCompareToggle = (open: boolean) => {
+    setCompareOpen(open);
+    if (open && !compareLoaded && !compareLoading) {
+      void runComparison();
+    }
+  };
+
+  const requestRecommendation = (messageOverride?: string) => {
+    const requestedMessage = messageOverride ?? message;
+    if (!context || !requestedMessage.trim()) return;
     setLoading(true);
     setLoadError(null);
     setToast(null);
@@ -62,7 +95,7 @@ export default function App() {
       });
     }, 80);
     void mynextApi
-      .recommend({ customerId, message: message.trim() })
+      .recommend({ customerId, message: requestedMessage.trim() })
       .then(setRecommendation)
       .catch(() =>
         setLoadError(
@@ -95,27 +128,33 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="hero">
-        <nav className="brandbar" aria-label="NeeNee AI">
+        <nav className="brandbar" aria-label="ATOM Mind">
           <div className="brandmark" aria-hidden="true">
             <span />
             <span />
             <span />
           </div>
-          <strong>နီးနီး <small>NeeNee AI</small></strong>
+          <strong>
+            ATOM Mind <small>Your Personal Telecom AI</small>
+          </strong>
           <span className="demo-pill">DEMO</span>
         </nav>
         <div className="hero-copy">
-          <p className="eyebrow">ATOM MyNext challenge concept</p>
-          <h1>မေးလိုက်ပါ။<br />သင့်အတွက်ပဲ ဖြေပေးမယ်။</h1>
+          <p className="eyebrow">ATOM အက်ပ်ထဲက သင့်ကိုယ်ပိုင် အကြံပေး</p>
+          <h1>
+            မေးလိုက်ပါ။
+            <br />
+            သင့်အတွက်ပဲ ဖြေပေးမယ်။
+          </h1>
           <p>
-            လက်ရှိအစီအစဉ်၊ သုံးစွဲမှုနဲ့ မှတ်တမ်းကို ပေါင်းစပ်ပြီး
-            နောက်တစ်ဆင့်ကို အကြောင်းပြချက်နဲ့ ပြောပေးပါတယ်။
+            သုံးစွဲမှု၊ အစီအစဉ်နဲ့ မှတ်တမ်းကို စစ်ပြီး နောက်တစ်ဆင့်ကို
+            အကြောင်းပြချက်နဲ့ ပြောပေးပါတယ်။
           </p>
         </div>
         <p className="synthetic-note">
           <span aria-hidden="true">◆</span>
-          စမ်းသပ်ဖန်တီးထားသော အချက်အလက်များသာ — ATOM ၏ တကယ့်ဖောက်သည်
-          အချက်အလက် မဟုတ်ပါ။
+          Hackathon concept · synthetic demo data only — not an official ATOM
+          product.
         </p>
       </header>
 
@@ -132,7 +171,16 @@ export default function App() {
           />
 
           {context ? (
-            <UsagePanel context={context} />
+            <UsagePanel
+              context={context}
+              disabled={loading}
+              onAutoRecommend={() => {
+                const analyzerQuestion =
+                  "ကျွန်တော့် usage analyzer အရ အခု ဘာလုပ်သင့်လဲ?";
+                setMessage(analyzerQuestion);
+                requestRecommendation(analyzerQuestion);
+              }}
+            />
           ) : (
             <section className="panel panel-skeleton" aria-busy="true">
               ဖောက်သည်အချက်အလက် ဖွင့်နေသည်…
@@ -146,7 +194,7 @@ export default function App() {
             customerName={context?.displayNameMm ?? ""}
             onMessageChange={setMessage}
             disabled={loading || !context}
-            onSubmit={requestRecommendation}
+            onSubmit={() => requestRecommendation()}
           />
 
           <div ref={recommendationRef}>
@@ -161,6 +209,16 @@ export default function App() {
         </div>
       </div>
 
+      <CompareDemo
+        question={DEMO_QUESTION}
+        suSu={compareResults.suSu}
+        koKo={compareResults.koKo}
+        loading={compareLoading}
+        open={compareOpen}
+        onToggle={handleCompareToggle}
+        onReplay={() => void runComparison()}
+      />
+
       {loadError ? (
         <div className="error-banner" role="alert">
           <strong>ဆက်လုပ်၍ မရသေးပါ</strong>
@@ -170,19 +228,25 @@ export default function App() {
 
       {toast ? (
         <div className="toast" role="status" aria-live="polite">
-          <span className="toast-check" aria-hidden="true">✓</span>
+          <span className="toast-check" aria-hidden="true">
+            ✓
+          </span>
           <div>
-            <strong>Demo လုပ်ဆောင်ချက် ပြီးပါပြီ</strong>
+            <strong>ATOM app ထဲမှာ နောက်တစ်ဆင့်</strong>
             <p>{toast}</p>
           </div>
-          <button type="button" onClick={() => setToast(null)} aria-label="ပိတ်မည်">
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            aria-label="ပိတ်မည်"
+          >
             ×
           </button>
         </div>
       ) : null}
 
       <footer>
-        နီးနီး · NeeNee AI · ATOM MyNext challenge concept · Synthetic data only
+        ATOM Mind · Your Personal Telecom AI · hackathon concept · synthetic data only
       </footer>
     </main>
   );

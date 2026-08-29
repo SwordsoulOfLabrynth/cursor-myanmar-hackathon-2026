@@ -44,52 +44,103 @@ function isLlmCopy(value: unknown): value is LlmCopy {
   );
 }
 
+function buildPrompt(
+  request: RecommendRequest,
+  base: RecommendResponse,
+): string {
+  return JSON.stringify({
+    instruction:
+      "Return JSON only with situationMm, whyCurrentDoesNotFitMm, whyRecommendedMm, estimatedBenefitMm. Write concise natural Burmese. Never change the locked decision or invent packages, prices, benefits, IDs, or customer facts.",
+    question: request.message,
+    syntheticCustomer: getCustomerContext(request.customerId),
+    allowedPackageCatalog: listPackages(),
+    lockedDecision: base,
+  });
+}
+
+async function requestLlmCopy(
+  request: RecommendRequest,
+  base: RecommendResponse,
+): Promise<string | null> {
+  const gatewayUrl = process.env.NETLIFY_AI_GATEWAY_URL;
+  const openAiKey = process.env.OPENAI_API_KEY;
+  const gatewayKey =
+    process.env.NETLIFY_AI_GATEWAY_TOKEN ?? process.env.AI_GATEWAY_API_KEY;
+
+  if (gatewayUrl || openAiKey) {
+    const response = await fetch(
+      gatewayUrl ?? `${process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1"}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${gatewayKey ?? openAiKey ?? ""}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are ATOM Mind, a Burmese telecom concierge. Use only supplied synthetic facts and the allowed catalog.",
+            },
+            { role: "user", content: buildPrompt(request, base) },
+          ],
+        }),
+      },
+    );
+    if (!response.ok) return null;
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object") return null;
+    const choices = (payload as { choices?: unknown }).choices;
+    if (!Array.isArray(choices) || choices.length === 0) return null;
+    const content = (
+      choices[0] as { message?: { content?: unknown } }
+    ).message?.content;
+    return typeof content === "string" ? content : null;
+  }
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) return null;
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": anthropicKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL ?? "claude-3-5-haiku-latest",
+      max_tokens: 700,
+      temperature: 0.2,
+      system:
+        "You are ATOM Mind, a Burmese telecom concierge. Return one JSON object only. Use only supplied synthetic facts and the allowed catalog.",
+      messages: [{ role: "user", content: buildPrompt(request, base) }],
+    }),
+  });
+  if (!response.ok) return null;
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== "object") return null;
+  const content = (payload as { content?: unknown }).content;
+  if (!Array.isArray(content)) return null;
+  const textBlock = content.find(
+    (block): block is { type: "text"; text: string } =>
+      typeof block === "object" &&
+      block !== null &&
+      (block as { type?: unknown }).type === "text" &&
+      typeof (block as { text?: unknown }).text === "string",
+  );
+  return textBlock?.text ?? null;
+}
+
 async function enrichWithLlm(
   request: RecommendRequest,
   base: RecommendResponse,
 ): Promise<RecommendResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return base;
-
-  const customer = getCustomerContext(request.customerId);
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a Burmese telecom concierge. Return JSON only with situationMm, whyCurrentDoesNotFitMm, whyRecommendedMm, estimatedBenefitMm. Write concise natural Burmese. Ground every claim in the supplied synthetic facts. Do not invent packages, prices, IDs, benefits, or customer facts. Do not mention real customer data.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            question: request.message,
-            syntheticCustomer: customer,
-            allowedPackageCatalog: listPackages(),
-            lockedDecision: base,
-          }),
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) return base;
-  const payload: unknown = await response.json();
-  if (!payload || typeof payload !== "object") return base;
-  const choices = (payload as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) return base;
-  const content = (
-    choices[0] as { message?: { content?: unknown } }
-  ).message?.content;
-  if (typeof content !== "string") return base;
+  const content = await requestLlmCopy(request, base);
+  if (!content) return base;
 
   try {
     const copy: unknown = JSON.parse(content);

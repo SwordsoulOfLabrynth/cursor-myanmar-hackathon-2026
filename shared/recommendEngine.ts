@@ -3,6 +3,7 @@ import type {
   IntentLabel,
   RecommendRequest,
   RecommendResponse,
+  UsageAnalysis,
 } from "./api-contract.ts";
 import { getCustomerContext, getPackageById } from "./demoCatalog.ts";
 
@@ -38,8 +39,122 @@ function dataPct(c: CustomerContext): number {
   return Math.round((c.usage.dataUsedGb / c.usage.dataAllowanceGb) * 100);
 }
 
+export function analyzeUsage(customer: CustomerContext): UsageAnalysis {
+  const cycleDay = Math.max(1, customer.usage.cycleDay);
+  const dataBurnGbPerDay = customer.usage.dataUsedGb / cycleDay;
+  const remainingDataGb = Math.max(
+    0,
+    customer.usage.dataAllowanceGb - customer.usage.dataUsedGb,
+  );
+  const estimatedDaysToEmpty =
+    dataBurnGbPerDay > 0 ? remainingDataGb / dataBurnGbPerDay : null;
+  const projectedMonthlyDataGb = dataBurnGbPerDay * 30;
+  const dataUsePct = dataPct(customer);
+  const voiceUsePct = Math.round(
+    (customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin) * 100,
+  );
+  const mix = [
+    { label: "YouTube", value: customer.usageMix.youtubePct },
+    { label: "ဂိမ်း", value: customer.usageMix.gamingPct },
+    { label: "Social", value: customer.usageMix.socialPct },
+    { label: "ဖုန်းခေါ်", value: customer.usageMix.callsPct },
+  ].sort((a, b) => b.value - a.value);
+
+  let currentPlanFitScore = 96;
+  if (dataUsePct >= 90) currentPlanFitScore -= 25;
+  if (projectedMonthlyDataGb < customer.usage.dataAllowanceGb * 0.5) {
+    currentPlanFitScore -= 28;
+  }
+  if (voiceUsePct >= 90) currentPlanFitScore -= 28;
+  currentPlanFitScore -= Math.min(21, customer.usage.topUpsThisMonth * 7);
+  currentPlanFitScore = Math.max(20, currentPlanFitScore);
+
+  const risk =
+    currentPlanFitScore < 55 ? "high" : currentPlanFitScore < 78 ? "medium" : "low";
+  const topUpPatternMm =
+    customer.usage.topUpsThisMonth >= 2
+      ? `${customer.usage.topUpsThisMonth} ကြိမ် top-up — အပိုကုန်ကျနေ`
+      : customer.usage.topUpsThisMonth === 1
+        ? "Top-up ၁ ကြိမ် — စောင့်ကြည့်ရန်"
+        : "Top-up မရှိ — အပိုကုန်ကျမှု မတွေ့";
+  const insightMm =
+    risk === "high"
+      ? `ဒီ ${customer.currentPlan.nameMm} က လက်ရှိ usage နဲ့ မကိုက်ပါ`
+      : risk === "medium"
+        ? `ဒီ plan က တစ်စိတ်တစ်ပိုင်းသာ ကိုက်ညီနေပါတယ်`
+        : `လက်ရှိ plan က usage နဲ့ ကိုက်ညီနေပါတယ်`;
+
+  return {
+    dataBurnGbPerDay: Number(dataBurnGbPerDay.toFixed(2)),
+    estimatedDaysToEmpty:
+      estimatedDaysToEmpty === null
+        ? null
+        : Number(estimatedDaysToEmpty.toFixed(1)),
+    projectedMonthlyDataGb: Number(projectedMonthlyDataGb.toFixed(1)),
+    topUpPatternMm,
+    dominantMixMm: mix
+      .slice(0, 3)
+      .map((item) => `${item.label} ${item.value}%`)
+      .join(" · "),
+    currentPlanFitScore,
+    risk,
+    insightMm,
+  };
+}
+
 function buildId(customerId: string): string {
   return `rec-${customerId}-${Date.now()}`;
+}
+
+type ScoredResponse = Omit<
+  RecommendResponse,
+  "analysis" | "decisionConfidence" | "scoreFactors"
+>;
+
+function withScore(
+  response: ScoredResponse,
+  customer: CustomerContext,
+): RecommendResponse {
+  const analysis = analyzeUsage(customer);
+  const isSupport = response.recommendedPackage === null &&
+    response.intent.label.startsWith("support_");
+  const evidenceCount = response.grounding.citedFactsMm.length;
+  const decisionConfidence = Math.min(
+    0.98,
+    0.62 + evidenceCount * 0.06 + response.intent.confidence * 0.12,
+  );
+
+  return {
+    ...response,
+    analysis,
+    grounding: {
+      citedFactsMm: [
+        `Analyzer: data ${analysis.dataBurnGbPerDay} GB/ရက် · လကုန် ${analysis.projectedMonthlyDataGb} GB ခန့်`,
+        `Plan fit: ${analysis.currentPlanFitScore}/100 · ${analysis.topUpPatternMm}`,
+        ...response.grounding.citedFactsMm,
+      ],
+    },
+    decisionConfidence: Number(decisionConfidence.toFixed(2)),
+    scoreFactors: [
+      {
+        labelMm: "လိုအပ်ချက်",
+        detailMm: `${response.intent.labelMm} · ${Math.round(response.intent.confidence * 100)}%`,
+        signal: response.intent.confidence >= 0.85 ? "high" : "medium",
+      },
+      {
+        labelMm: "သုံးစွဲနှုန်း",
+        detailMm: `${analysis.dataBurnGbPerDay} GB/ရက် · fit ${analysis.currentPlanFitScore}/100`,
+        signal: analysis.risk,
+      },
+      {
+        labelMm: "အပြုအမူ",
+        detailMm: isSupport
+          ? "မလိုအပ်တဲ့ package မရောင်းပါ"
+          : `Top-up ${customer.usage.topUpsThisMonth} ကြိမ် · ${customer.preferencesMm[0] ?? "အသုံးပြုမှတ်တမ်း"}`,
+        signal: customer.usage.topUpsThisMonth > 1 || isSupport ? "high" : "low",
+      },
+    ],
+  };
 }
 
 export function recommend(request: RecommendRequest): RecommendResponse {
@@ -48,7 +163,7 @@ export function recommend(request: RecommendRequest): RecommendResponse {
   const usedPct = dataPct(customer);
 
   if (intent.label === "support_sim") {
-    return {
+    return withScore({
       recommendationId: buildId(customer.id),
       intent,
       situationMm: `${customer.displayNameMm} — နံပါတ် ${customer.phoneMasked}။ လက်ရှိ ${customer.currentPlan.nameMm} သုံးနေသည်။`,
@@ -70,11 +185,11 @@ export function recommend(request: RecommendRequest): RecommendResponse {
         ],
       },
       source: "rules",
-    };
+    }, customer);
   }
 
   if (intent.label === "support_network") {
-    return {
+    return withScore({
       recommendationId: buildId(customer.id),
       intent,
       situationMm: `${customer.displayNameMm} ကွန်ရက် မရဟု ပြောသည်။ လက်ရှိ ပက်ကေ့ချ် ${customer.currentPlan.nameMm}။`,
@@ -92,11 +207,11 @@ export function recommend(request: RecommendRequest): RecommendResponse {
         citedFactsMm: [`ပက်ကေ့ချ်: ${customer.currentPlan.nameMm}`],
       },
       source: "rules",
-    };
+    }, customer);
   }
 
   if (intent.label === "billing") {
-    return {
+    return withScore({
       recommendationId: buildId(customer.id),
       intent,
       situationMm: `${customer.displayNameMm} ၏ ${customer.currentPlan.nameMm} နှင့် ဒီလ top-up ${customer.usage.topUpsThisMonth} ကြိမ်ကို စစ်ဆေးထားသည်။`,
@@ -120,12 +235,12 @@ export function recommend(request: RecommendRequest): RecommendResponse {
         ],
       },
       source: "rules",
-    };
+    }, customer);
   }
 
   if (intent.label === "voice_need" && customer.id !== "ko-ko") {
     const pack = getPackageById("atom-voice-120");
-    return {
+    return withScore({
       recommendationId: buildId(customer.id),
       intent,
       situationMm: `${customer.displayNameMm} သည် ဖုန်း ${customer.usage.voiceUsedMin}/${customer.usage.voiceAllowanceMin} မိနစ် သုံးထားသည်။`,
@@ -161,12 +276,12 @@ export function recommend(request: RecommendRequest): RecommendResponse {
         ],
       },
       source: "rules",
-    };
+    }, customer);
   }
 
   if (customer.id === "su-su" && (intent.label === "data_need" || intent.label === "unknown")) {
     const pack = getPackageById("atom-30gb");
-    return {
+    return withScore({
       recommendationId: buildId(customer.id),
       intent: { ...intent, label: "data_need", labelMm: "data / ပက်ကေ့ချ်" },
       situationMm: `လက်ရှိ ${customer.currentPlan.nameMm} — ${customer.usage.dataUsedGb} / ${customer.usage.dataAllowanceGb} GB (${usedPct}%) သုံးပြီး။ ဒီလ top-up ${customer.usage.topUpsThisMonth} ကြိမ်။`,
@@ -190,7 +305,7 @@ export function recommend(request: RecommendRequest): RecommendResponse {
         ],
       },
       source: "rules",
-    };
+    }, customer);
   }
 
   if (customer.id === "ko-ko") {
@@ -198,7 +313,7 @@ export function recommend(request: RecommendRequest): RecommendResponse {
     const leftover = (
       customer.usage.dataAllowanceGb - customer.usage.dataUsedGb
     ).toFixed(1);
-    return {
+    return withScore({
       recommendationId: buildId(customer.id),
       intent,
       situationMm: `Data ${customer.usage.dataUsedGb}/${customer.usage.dataAllowanceGb} GB သာ သုံး။ ဖုန်း ${customer.usage.voiceUsedMin}/${customer.usage.voiceAllowanceMin} မိနစ်။`,
@@ -222,10 +337,10 @@ export function recommend(request: RecommendRequest): RecommendResponse {
         ],
       },
       source: "rules",
-    };
+    }, customer);
   }
 
-  return {
+  return withScore({
     recommendationId: buildId(customer.id),
     intent,
     situationMm: `SIM အသစ်နီးပါး — ${customer.usage.dataUsedGb} / ${customer.usage.dataAllowanceGb} GB သာ သုံးပြီး။ Top-up မရှိ။`,
@@ -249,5 +364,5 @@ export function recommend(request: RecommendRequest): RecommendResponse {
       ],
     },
     source: "rules",
-  };
+  }, customer);
 }

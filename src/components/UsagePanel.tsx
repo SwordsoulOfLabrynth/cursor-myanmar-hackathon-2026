@@ -1,8 +1,14 @@
 import type { CustomerContext } from "../../shared/api-contract.ts";
+import { analyzeUsage } from "../../shared/recommendEngine.ts";
 
-type Props = { context: CustomerContext };
+type Props = {
+  context: CustomerContext;
+  onAutoRecommend: () => void;
+  disabled: boolean;
+};
 
-export function UsagePanel({ context }: Props) {
+export function UsagePanel({ context, onAutoRecommend, disabled }: Props) {
+  const analysis = analyzeUsage(context);
   const dataPct = Math.min(
     100,
     Math.round(
@@ -20,8 +26,8 @@ export function UsagePanel({ context }: Props) {
     <section className="panel usage-panel" aria-labelledby="usage-heading">
       <div className="section-heading">
         <div>
-          <p className="step-label">လက်ရှိအခြေအနေ</p>
-          <h2 id="usage-heading">{context.displayNameMm} ရဲ့ သုံးစွဲမှု</h2>
+          <p className="step-label">သင့် usage အပေါ် အခြေခံပြီး</p>
+          <h2 id="usage-heading">{context.displayNameMm} ရဲ့ plan ကို စစ်ထားတယ်</h2>
         </div>
         <div className="plan-badge">
           <small>လက်ရှိအစီအစဉ်</small>
@@ -29,6 +35,69 @@ export function UsagePanel({ context }: Props) {
         </div>
       </div>
 
+      <div className={`insight-verdict ${analysis.risk}`}>
+        <div>
+          <small>PLAN FIT SCORE</small>
+          <strong>{analysis.currentPlanFitScore}<span>/100</span></strong>
+        </div>
+        <p>{analysis.insightMm}</p>
+      </div>
+
+      <div className="analyzer-metrics">
+        <div>
+          <small>Data burn rate</small>
+          <strong>{analysis.dataBurnGbPerDay} GB</strong>
+          <span>တစ်ရက်လျှင်</span>
+        </div>
+        <div>
+          <small>ကုန်ရန်ခန့်မှန်း</small>
+          <strong>
+            {analysis.estimatedDaysToEmpty === null
+              ? "—"
+              : `${analysis.estimatedDaysToEmpty} ရက်`}
+          </strong>
+          <span>လက်ရှိနှုန်းအရ</span>
+        </div>
+        <div>
+          <small>လကုန်ခန့်မှန်း</small>
+          <strong>{analysis.projectedMonthlyDataGb} GB</strong>
+          <span>စုစုပေါင်း</span>
+        </div>
+      </div>
+
+      <div className="topup-alert">
+        <span aria-hidden="true">{context.usage.topUpsThisMonth >= 2 ? "!" : "✓"}</span>
+        <div>
+          <small>TOP-UP PATTERN</small>
+          <strong>{analysis.topUpPatternMm}</strong>
+        </div>
+      </div>
+
+      <div className="mix-analyzer">
+        <div className="mix-heading">
+          <small>USAGE MIX</small>
+          <span>{analysis.dominantMixMm}</span>
+        </div>
+        <div className="mix-bar" aria-label={analysis.dominantMixMm}>
+          <i className="youtube" style={{ width: `${context.usageMix.youtubePct}%` }} />
+          <i className="gaming" style={{ width: `${context.usageMix.gamingPct}%` }} />
+          <i className="social" style={{ width: `${context.usageMix.socialPct}%` }} />
+          <i className="calls" style={{ width: `${context.usageMix.callsPct}%` }} />
+        </div>
+      </div>
+
+      <button
+        className="auto-recommend"
+        type="button"
+        onClick={onAutoRecommend}
+        disabled={disabled}
+      >
+        <span>✦ အလိုအလျောက် အကြံရယူမည်</span>
+        <span aria-hidden="true">→</span>
+      </button>
+
+      <details className="raw-usage">
+        <summary>Analyzer သုံးထားသော အချက်အလက် ကြည့်မည်</summary>
       <div className="usage-cards">
         <article className="usage-card data-card">
           <div className="usage-card-top">
@@ -94,6 +163,7 @@ export function UsagePanel({ context }: Props) {
             </li>
           ))}
         </ol>
+      </details>
       </details>
     </section>
   );

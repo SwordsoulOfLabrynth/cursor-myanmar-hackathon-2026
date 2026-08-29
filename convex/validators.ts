@@ -43,6 +43,7 @@ export const customerContextValidator = v.object({
     voiceUsedMin: v.number(),
     voiceAllowanceMin: v.number(),
     topUpsThisMonth: v.number(),
+    cycleDay: v.number(),
     cycleLabelMm: v.string(),
   }),
   usageMix: v.object({
@@ -76,6 +77,24 @@ export const recommendResponseValidator = v.object({
     labelMm: v.string(),
     confidence: v.number(),
   }),
+  analysis: v.object({
+    dataBurnGbPerDay: v.number(),
+    estimatedDaysToEmpty: v.union(v.number(), v.null()),
+    projectedMonthlyDataGb: v.number(),
+    topUpPatternMm: v.string(),
+    dominantMixMm: v.string(),
+    currentPlanFitScore: v.number(),
+    risk: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+    insightMm: v.string(),
+  }),
+  decisionConfidence: v.number(),
+  scoreFactors: v.array(
+    v.object({
+      labelMm: v.string(),
+      detailMm: v.string(),
+      signal: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+    }),
+  ),
   situationMm: v.string(),
   whyCurrentDoesNotFitMm: v.string(),
   recommendedPackage: v.union(packageValidator, v.null()),

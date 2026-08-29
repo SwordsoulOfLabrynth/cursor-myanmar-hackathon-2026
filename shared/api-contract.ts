@@ -1,5 +1,5 @@
 /**
- * NeeNee AI — frontend/backend API contract for the ATOM MyNext challenge.
+ * ATOM Mind — frontend/backend API contract for the ATOM MyNext challenge.
  *
  * Frontend and backend MUST use these types. Mock client and Convex actions
  * return the same shapes so UI can ship before Convex/LLM is wired.
@@ -44,6 +44,7 @@ export type UsageSnapshot = {
   voiceUsedMin: number;
   voiceAllowanceMin: number;
   topUpsThisMonth: number;
+  cycleDay: number;
   cycleLabelMm: string;
 };
 
@@ -100,9 +101,27 @@ export type RecommendAction = {
   labelEn: string;
 };
 
+export type UsageAnalysis = {
+  dataBurnGbPerDay: number;
+  estimatedDaysToEmpty: number | null;
+  projectedMonthlyDataGb: number;
+  topUpPatternMm: string;
+  dominantMixMm: string;
+  currentPlanFitScore: number;
+  risk: "high" | "medium" | "low";
+  insightMm: string;
+};
+
 export type RecommendResponse = {
   recommendationId: string;
   intent: RecommendIntent;
+  analysis: UsageAnalysis;
+  decisionConfidence: number;
+  scoreFactors: Array<{
+    labelMm: string;
+    detailMm: string;
+    signal: "high" | "medium" | "low";
+  }>;
   situationMm: string;
   whyCurrentDoesNotFitMm: string;
   recommendedPackage: PackageOffer | null;

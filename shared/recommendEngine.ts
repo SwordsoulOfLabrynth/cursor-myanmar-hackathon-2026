@@ -5,7 +5,7 @@ import type {
   RecommendResponse,
   UsageAnalysis,
 } from "./api-contract.ts";
-import { getCustomerContext, getPackageById } from "./demoCatalog.ts";
+import { getCustomerContext, PACKAGES } from "./demoCatalog.ts";
 
 export function detectIntent(message: string): {
   label: IntentLabel;
@@ -108,12 +108,17 @@ function buildId(customerId: string): string {
 
 type ScoredResponse = Omit<
   RecommendResponse,
-  "analysis" | "decisionConfidence" | "scoreFactors"
+  | "analysis"
+  | "decisionConfidence"
+  | "scoreFactors"
+  | "recommendationScore"
+  | "recommendationSignalsMm"
 >;
 
 function withScore(
   response: ScoredResponse,
   customer: CustomerContext,
+  packageDecision?: { score: number; signalsMm: string[] },
 ): RecommendResponse {
   const analysis = analyzeUsage(customer);
   const isSupport = response.recommendedPackage === null &&
@@ -127,6 +132,8 @@ function withScore(
   return {
     ...response,
     analysis,
+    recommendationScore: packageDecision?.score ?? null,
+    recommendationSignalsMm: packageDecision?.signalsMm ?? [],
     grounding: {
       citedFactsMm: [
         `Analyzer: data ${analysis.dataBurnGbPerDay} GB/ရက် · လကုန် ${analysis.projectedMonthlyDataGb} GB ခန့်`,
@@ -155,6 +162,195 @@ function withScore(
       },
     ],
   };
+}
+
+type PackageScore = {
+  package: (typeof PACKAGES)[number];
+  score: number;
+  dataFit: number;
+  voiceFit: number;
+  effectiveDataDemandGb: number;
+  effectiveVoiceDemandMin: number;
+  dataWeight: number;
+  recentDataTopUps: number;
+  recentVoiceShortages: number;
+};
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function capacityFit(capacity: number, demand: number): number {
+  if (demand <= 0) return 100;
+  if (capacity >= demand) {
+    return 100 - Math.min(45, (capacity / demand - 1) * 35);
+  }
+  return 100 - Math.min(90, (1 - capacity / demand) * 110);
+}
+
+function countRecentHistory(
+  customer: CustomerContext,
+  pattern: RegExp,
+): number {
+  const datedEvents = customer.history
+    .map((event) => ({ event, timestamp: Date.parse(event.dateLabel) }))
+    .filter((item) => Number.isFinite(item.timestamp));
+  const latestTimestamp = Math.max(...datedEvents.map((item) => item.timestamp));
+  if (!Number.isFinite(latestTimestamp)) return 0;
+  const recentThreshold = latestTimestamp - 31 * 24 * 60 * 60 * 1000;
+  return datedEvents.filter(
+    ({ event, timestamp }) =>
+      timestamp >= recentThreshold &&
+      pattern.test(`${event.eventEn} ${event.eventMm}`),
+  ).length;
+}
+
+/**
+ * Scores every catalog package from usage, projected demand, mix and history.
+ * Customer IDs never participate in this calculation.
+ */
+export function scoreCatalogPackages(
+  customer: CustomerContext,
+  intent: IntentLabel = "unknown",
+): PackageScore[] {
+  const analysis = analyzeUsage(customer);
+  const dataPressure =
+    customer.usage.dataAllowanceGb > 0
+      ? customer.usage.dataUsedGb / customer.usage.dataAllowanceGb
+      : 0;
+  const voicePressure =
+    customer.usage.voiceAllowanceMin > 0
+      ? customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin
+      : 0;
+  const recentDataTopUps = countRecentHistory(customer, /data top-up|data.*အပို/i);
+  const recentVoiceShortages = countRecentHistory(
+    customer,
+    /minutes? exhausted|မိနစ်.*ကုန်/i,
+  );
+  const topUpEvidence = Math.max(
+    customer.usage.topUpsThisMonth,
+    recentDataTopUps,
+  );
+  const effectiveDataDemandGb =
+    analysis.projectedMonthlyDataGb *
+    (1 +
+      Math.min(
+        0.8,
+        topUpEvidence * 0.18 + (dataPressure >= 0.85 ? 0.12 : 0),
+      ));
+  const projectedVoiceMinutes =
+    (customer.usage.voiceUsedMin / Math.max(1, customer.usage.cycleDay)) * 30;
+  const effectiveVoiceDemandMin =
+    projectedVoiceMinutes *
+    (1 +
+      Math.min(
+        0.25,
+        recentVoiceShortages * 0.15 + (voicePressure >= 0.9 ? 0.08 : 0),
+      ));
+  const intentVoiceAdjustment = intent === "voice_need" ? 0.05 : 0;
+  const intentDataAdjustment = intent === "data_need" ? -0.05 : 0;
+  const voiceWeight = clamp(
+    customer.usageMix.callsPct / 100 * 0.65 +
+      voicePressure * 0.25 +
+      Math.min(0.1, recentVoiceShortages * 0.1) +
+      intentVoiceAdjustment +
+      intentDataAdjustment,
+    0.12,
+    0.82,
+  );
+  const dataWeight = 1 - voiceWeight;
+
+  return PACKAGES.map((packageOffer) => {
+    const monthlyMultiplier = 30 / packageOffer.validityDays;
+    const monthlyDataGb = packageOffer.dataGb * monthlyMultiplier;
+    const monthlyVoiceMinutes = packageOffer.voiceMinutes * monthlyMultiplier;
+    const monthlyFeeMmk = packageOffer.monthlyFeeMmk * monthlyMultiplier;
+    const dataFit = capacityFit(monthlyDataGb, effectiveDataDemandGb);
+    const voiceFit = capacityFit(
+      monthlyVoiceMinutes,
+      effectiveVoiceDemandMin,
+    );
+    const weightedFit = dataFit * dataWeight + voiceFit * voiceWeight;
+    const feeDeltaRatio =
+      (monthlyFeeMmk - customer.currentPlan.monthlyFeeMmk) /
+      Math.max(1, customer.currentPlan.monthlyFeeMmk);
+    const priceScore = clamp(88 - feeDeltaRatio * 25, 48, 100);
+    const isCurrentPlan = packageOffer.id === customer.currentPlan.id;
+    const currentPlanMeetsDemand =
+      monthlyDataGb >= effectiveDataDemandGb &&
+      monthlyVoiceMinutes >= effectiveVoiceDemandMin;
+    const continuityAdjustment = isCurrentPlan
+      ? currentPlanMeetsDemand && topUpEvidence === 0
+        ? 12
+        : -Math.min(15, topUpEvidence * 5 + recentVoiceShortages * 8)
+      : 0;
+    const mixAdjustment =
+      (packageOffer.tags.includes("heavy-data") && dataWeight >= 0.7 ? 9 : 0) +
+      (packageOffer.tags.includes("streaming") &&
+      customer.usageMix.youtubePct >= 35
+        ? 5
+        : 0) +
+      (packageOffer.tags.includes("youtube") &&
+      customer.usageMix.youtubePct >= 35
+        ? 5
+        : 0) +
+      (packageOffer.tags.includes("voice") && voiceWeight >= 0.55 ? 10 : 0);
+    const shortValidityPenalty = packageOffer.validityDays < 28 ? 25 : 0;
+    const score = clamp(
+      weightedFit * 0.72 +
+        priceScore * 0.18 +
+        8 +
+        continuityAdjustment +
+        mixAdjustment -
+        shortValidityPenalty,
+      0,
+      100,
+    );
+
+    return {
+      package: packageOffer,
+      score: Number(score.toFixed(1)),
+      dataFit: Number(dataFit.toFixed(1)),
+      voiceFit: Number(voiceFit.toFixed(1)),
+      effectiveDataDemandGb: Number(effectiveDataDemandGb.toFixed(1)),
+      effectiveVoiceDemandMin: Math.round(effectiveVoiceDemandMin),
+      dataWeight: Number(dataWeight.toFixed(2)),
+      recentDataTopUps,
+      recentVoiceShortages,
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+
+function recommendationSignalsMm(
+  customer: CustomerContext,
+  winner: PackageScore,
+): string[] {
+  const dataUsePercent = dataPct(customer);
+  const voiceUsePercent = Math.round(
+    (customer.usage.voiceUsedMin /
+      Math.max(1, customer.usage.voiceAllowanceMin)) *
+      100,
+  );
+  const signals = [
+    `လစဉ် data ခန့်မှန်း ${winner.effectiveDataDemandGb} GB · ${winner.package.nameMm} တွင် ${winner.package.dataGb} GB`,
+    winner.dataWeight >= 0.5
+      ? `Data သုံးစွဲမှု ${dataUsePercent}% · YouTube/ဂိမ်း ${customer.usageMix.youtubePct + customer.usageMix.gamingPct}%`
+      : `ဖုန်းခေါ် သုံးစွဲမှု ${voiceUsePercent}% · အသုံးပြုမှု mix ${customer.usageMix.callsPct}%`,
+  ];
+  if (customer.usage.topUpsThisMonth > 0 || winner.recentDataTopUps > 0) {
+    signals.push(
+      `ဒီလ top-up ${customer.usage.topUpsThisMonth} ကြိမ် · မကြာသေးမီ data top-up မှတ်တမ်း ${winner.recentDataTopUps} ခု`,
+    );
+  } else if (winner.recentVoiceShortages > 0) {
+    signals.push(
+      `လစဉ် ခေါ်မိနစ် ခန့်မှန်း ${winner.effectiveVoiceDemandMin} · မိနစ်ကုန်မှတ်တမ်း ${winner.recentVoiceShortages} ခု`,
+    );
+  } else {
+    signals.push(
+      `Top-up မရှိ · လက်ရှိ ${customer.currentPlan.nameMm} နှင့် ကုန်ကျစရိတ်ကို နှိုင်းယှဉ်ထား`,
+    );
+  }
+  return signals.slice(0, 3);
 }
 
 export function recommend(request: RecommendRequest): RecommendResponse {
@@ -238,131 +434,52 @@ export function recommend(request: RecommendRequest): RecommendResponse {
     }, customer);
   }
 
-  if (intent.label === "voice_need" && customer.id !== "ko-ko") {
-    const pack = getPackageById("atom-voice-120");
-    return withScore({
-      recommendationId: buildId(customer.id),
-      intent,
-      situationMm: `${customer.displayNameMm} သည် ဖုန်း ${customer.usage.voiceUsedMin}/${customer.usage.voiceAllowanceMin} မိနစ် သုံးထားသည်။`,
-      whyCurrentDoesNotFitMm:
-        customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin > 0.8
-          ? "လက်ရှိခေါ်မိနစ် ၈၀% ကျော် သုံးထားသဖြင့် လကုန်မတိုင်မီ မလုံနိုင်ပါ။"
-          : "လက်ရှိခေါ်မိနစ် မကုန်သေးသဖြင့် ပိုကြီးသည့်အစီအစဉ်ကို အခုချက်ချင်း မပြောင်းသင့်ပါ။",
-      recommendedPackage:
-        customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin > 0.8
-          ? pack
-          : null,
-      whyRecommendedMm:
-        customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin > 0.8
-          ? "ဖုန်းခေါ် ၁၂၀ မိနစ်က လက်ရှိသုံးနှုန်းနှင့် ပိုကိုက်ညီသည်။"
-          : "လက်ရှိအစီအစဉ်ကို ဆက်သုံးပြီး ခေါ်မိနစ် ၈၀% ရောက်မှ ထပ်စစ်ပါ။",
-      estimatedBenefitMm:
-        "Data မလိုအပ်ဘဲ ပိုဝယ်ခြင်းကို ရှောင်ပြီး ဖုန်းခေါ်သုံးနှုန်းအတိုင်း ဆုံးဖြတ်နိုင်သည်။",
-      action: {
-        id:
-          customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin > 0.8
-            ? "switch_atom-voice-120"
-            : "keep_atom-10gb",
-        labelMm:
-          customer.usage.voiceUsedMin / customer.usage.voiceAllowanceMin > 0.8
-            ? "ဖုန်းခေါ် ၁၂၀ မိနစ် သို့ ပြောင်းမည်"
-            : "လက်ရှိအစီအစဉ် ဆက်သုံးမည်",
-        labelEn: "Confirm recommendation",
-      },
-      grounding: {
-        citedFactsMm: [
-          `ဖုန်းခေါ်: ${customer.usage.voiceUsedMin}/${customer.usage.voiceAllowanceMin} မိနစ်`,
-          `ခေါ်ဆိုမှုအချိုး: ${customer.usageMix.callsPct}%`,
-        ],
-      },
-      source: "rules",
-    }, customer);
+  const [winner] = scoreCatalogPackages(customer, intent.label);
+  if (!winner) {
+    throw new Error("Package catalog is empty");
   }
-
-  if (customer.id === "su-su" && (intent.label === "data_need" || intent.label === "unknown")) {
-    const pack = getPackageById("atom-30gb");
-    return withScore({
-      recommendationId: buildId(customer.id),
-      intent: { ...intent, label: "data_need", labelMm: "data / ပက်ကေ့ချ်" },
-      situationMm: `လက်ရှိ ${customer.currentPlan.nameMm} — ${customer.usage.dataUsedGb} / ${customer.usage.dataAllowanceGb} GB (${usedPct}%) သုံးပြီး။ ဒီလ top-up ${customer.usage.topUpsThisMonth} ကြိမ်။`,
-      whyCurrentDoesNotFitMm: `မကြာသေးမီက ${customer.previousPlanNameMm} မှ တက်လာပြီးသား။ YouTube ${customer.usageMix.youtubePct}% + ဂိမ်း ${customer.usageMix.gamingPct}% ကြောင့် ၁၅ GB မလုံ။ Top-up ခဏခဏက ပိုစျေးကြီးနိုင်သည်။`,
-      recommendedPackage: pack,
-      whyRecommendedMm:
-        "သုံးနှုန်းအရ လစဉ် ~၂၈ GB လိုနိုင်သည်။ ၃၀ GB က top-up ၃ ကြိမ်ထက် ခန့်မှန်း စျေးသက်သာပြီး ပြတ်တောက်မှု နည်းသည်။",
-      estimatedBenefitMm:
-        "ဒီလ top-up ခန့်မှန်း ၃×၂၀၀၀ ကျပ် ဝန်းကျင် ချွေတာနိုင်ပြီး လကုန်မီ ကုန်မည့် အကြိမ် လျော့နိုင်သည်။",
-      action: {
-        id: "switch_atom-30gb",
-        labelMm: "၃၀ GB သို့ ပြောင်းမည်",
-        labelEn: "Switch to 30GB",
-      },
-      grounding: {
-        citedFactsMm: [
-          `လက်ရှိ: ${customer.usage.dataUsedGb}GB / ${customer.usage.dataAllowanceGb}GB`,
-          `Top-up ဒီလ: ${customer.usage.topUpsThisMonth} ကြိမ်`,
-          `သုံးပုံ: YouTube ${customer.usageMix.youtubePct}% · ဂိမ်း ${customer.usageMix.gamingPct}%`,
-          `ယခင်: ${customer.previousPlanNameMm}`,
-        ],
-      },
-      source: "rules",
-    }, customer);
-  }
-
-  if (customer.id === "ko-ko") {
-    const pack = getPackageById("atom-voice-120");
-    const leftover = (
-      customer.usage.dataAllowanceGb - customer.usage.dataUsedGb
-    ).toFixed(1);
-    return withScore({
-      recommendationId: buildId(customer.id),
-      intent,
-      situationMm: `Data ${customer.usage.dataUsedGb}/${customer.usage.dataAllowanceGb} GB သာ သုံး။ ဖုန်း ${customer.usage.voiceUsedMin}/${customer.usage.voiceAllowanceMin} မိနစ်။`,
-      whyCurrentDoesNotFitMm: `၃၀ GB ဝယ်ထားသော်လည်း ${leftover} GB ပိုနေသည်။ ပြဿနာက data မဟုတ် — မိသားစု ခေါ်မိနစ် ကုန်နေသည် (${customer.usageMix.callsPct}%)။`,
-      recommendedPackage: pack,
-      whyRecommendedMm:
-        "Voice ၁၂၀ မိနစ် ပက်ကေ့ချ်က ခေါ်များသူ့ အတွက် ကိုက်သည်။ Data ပိုမဝယ်သင့်။",
-      estimatedBenefitMm:
-        `မသုံးသော data ~${leftover} GB အတွက် ပိုက်ဆံ ထပ်မကျဘဲ ခေါ်မိနစ် ပိုရနိုင်သည်။`,
-      action: {
-        id: "switch_atom-voice-120",
-        labelMm: "ဖုန်းခေါ် ပက်ကေ့ချ် သို့ ပြောင်းမည်",
-        labelEn: "Switch to voice pack",
-      },
-      grounding: {
-        citedFactsMm: [
-          `Data ကျန်: ${leftover} GB`,
-          `မိနစ်: ${customer.usage.voiceUsedMin} / ${customer.usage.voiceAllowanceMin}`,
-          `သုံးပုံ ခေါ်ဆိုမှု: ${customer.usageMix.callsPct}%`,
-          `Top-up ဒီလ: ${customer.usage.topUpsThisMonth}`,
-        ],
-      },
-      source: "rules",
-    }, customer);
-  }
+  const keepCurrent = winner.package.id === customer.currentPlan.id;
+  const signalsMm = recommendationSignalsMm(customer, winner);
+  const voiceLed = winner.dataWeight < 0.5;
+  const dataLeftGb = Math.max(
+    0,
+    customer.usage.dataAllowanceGb - customer.usage.dataUsedGb,
+  );
+  const feeDifference =
+    winner.package.monthlyFeeMmk - customer.currentPlan.monthlyFeeMmk;
 
   return withScore({
     recommendationId: buildId(customer.id),
     intent,
-    situationMm: `SIM အသစ်နီးပါး — ${customer.usage.dataUsedGb} / ${customer.usage.dataAllowanceGb} GB သာ သုံးပြီး။ Top-up မရှိ။`,
+    situationMm: `${customer.displayNameMm} — data ${customer.usage.dataUsedGb}/${customer.usage.dataAllowanceGb} GB (${usedPct}%)၊ ဖုန်း ${customer.usage.voiceUsedMin}/${customer.usage.voiceAllowanceMin} မိနစ်၊ top-up ${customer.usage.topUpsThisMonth} ကြိမ်။`,
     whyCurrentDoesNotFitMm:
-      "လက်ရှိ ၁၀ GB မကုန်သေး။ ပိုကြီးသော ပက်ကေ့ချ် အကြံမပေးသင့်။",
-    recommendedPackage: null,
+      keepCurrent
+        ? `လစဉ် data ${winner.effectiveDataDemandGb} GB နှင့် ခေါ်မိနစ် ${winner.effectiveVoiceDemandMin} ခန့်ဖြစ်၍ လက်ရှိ ${customer.currentPlan.nameMm} က လုံလောက်နေသည်။`
+        : voiceLed
+          ? `Data ${dataLeftGb.toFixed(1)} GB ကျန်သော်လည်း ခေါ်မိနစ်သုံးစွဲမှု ${Math.round((customer.usage.voiceUsedMin / Math.max(1, customer.usage.voiceAllowanceMin)) * 100)}% ရှိသဖြင့် လက်ရှိ plan ရဲ့ mix မကိုက်ပါ။`
+          : `လစဉ် data လိုအပ်ချက် ${winner.effectiveDataDemandGb} GB ခန့်နှင့် top-up မှတ်တမ်းကြောင့် လက်ရှိ ${customer.currentPlan.nameMm} မလုံလောက်နိုင်ပါ။`,
+    recommendedPackage: keepCurrent ? null : winner.package,
     whyRecommendedMm:
-      "ဆက်သုံး ၁၀ GB၊ လိုမှ နေ့စဉ် ၁ GB။ Upsell မလုပ်။",
-    estimatedBenefitMm: "မလိုအပ်သော လစဉ် ၅၀၀၀–၈၀၀၀ ကျပ် မကုန်အောင် ရှောင်သည်။",
+      keepCurrent
+        ? `Score ${winner.score}/100 ဖြင့် လက်ရှိ ${customer.currentPlan.nameMm} ကို ဆက်သုံးခြင်းက အကောင်းဆုံး — မလိုအပ်သော upsell မလုပ်ပါ။`
+        : `${winner.package.nameMm} က data fit ${winner.dataFit}/100၊ voice fit ${winner.voiceFit}/100 နှင့် စုစုပေါင်း score ${winner.score}/100 ရရှိသည်။`,
+    estimatedBenefitMm: keepCurrent
+      ? `လက်ရှိ plan ကို ဆက်ထား၍ မလိုအပ်သော လစဉ်ကုန်ကျစရိတ် တိုးခြင်းကို ရှောင်နိုင်သည်။`
+      : feeDifference <= 0
+        ? `လက်ရှိထက် တစ်လ ${Math.abs(feeDifference).toLocaleString()} ကျပ်ခန့် သက်သာပြီး လိုအပ်ချက်နှင့် ပိုကိုက်နိုင်သည်။`
+        : `တစ်လ ${feeDifference.toLocaleString()} ကျပ်ခန့် ပိုကျသော်လည်း လိုအပ်သည့် allowance ကို plan တစ်ခုထဲတွင် ပိုကိုက်စေသည်။`,
     action: {
-      id: "keep_atom-10gb",
-      labelMm: "၁၀ GB ဆက်သုံးမည်",
-      labelEn: "Keep 10GB",
+      id: keepCurrent ? `keep_${winner.package.id}` : `switch_${winner.package.id}`,
+      labelMm: keepCurrent
+        ? `${winner.package.nameMm} ဆက်သုံးမည်`
+        : `${winner.package.nameMm} သို့ ပြောင်းမည်`,
+      labelEn: keepCurrent
+        ? `Keep ${winner.package.name}`
+        : `Switch to ${winner.package.name}`,
     },
     grounding: {
-      citedFactsMm: [
-        `သုံးပြီး: ${customer.usage.dataUsedGb}GB`,
-        `Top-up: ${customer.usage.topUpsThisMonth}`,
-        `သုံးပုံ: ချတ် ${customer.usageMix.socialPct}%`,
-        `မှတ်ချက်: ${customer.previousPlanNameMm}`,
-      ],
+      citedFactsMm: signalsMm,
     },
     source: "rules",
-  }, customer);
+  }, customer, { score: winner.score, signalsMm });
 }

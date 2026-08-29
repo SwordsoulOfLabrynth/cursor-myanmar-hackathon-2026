@@ -88,6 +88,8 @@ export const recommendResponseValidator = v.object({
     insightMm: v.string(),
   }),
   decisionConfidence: v.number(),
+  recommendationScore: v.union(v.number(), v.null()),
+  recommendationSignalsMm: v.array(v.string()),
   scoreFactors: v.array(
     v.object({
       labelMm: v.string(),

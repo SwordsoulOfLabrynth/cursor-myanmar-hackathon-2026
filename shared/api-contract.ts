@@ -117,6 +117,8 @@ export type RecommendResponse = {
   intent: RecommendIntent;
   analysis: UsageAnalysis;
   decisionConfidence: number;
+  recommendationScore: number | null;
+  recommendationSignalsMm: string[];
   scoreFactors: Array<{
     labelMm: string;
     detailMm: string;

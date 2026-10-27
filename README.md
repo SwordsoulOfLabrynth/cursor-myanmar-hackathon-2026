@@ -1,8 +1,21 @@
 # ATOM Mind — Your Personal Telecom AI
 
-Hackathon concept for the ATOM MyNext challenge: a Burmese-first personal
-telecom AI that turns intent, usage, and service history into a grounded next
-action.
+> **Cursor AI Hackathon Myanmar 2026 Submission**  
+> A Burmese-first personal telecom AI decision layer that turns natural language intent, usage patterns, and recharge history into grounded, explainable actions inside the ATOM ecosystem.
+
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6+-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Convex](https://img.shields.io/badge/Backend-Convex-FF5722?style=flat-square)](https://convex.dev/)
+[![Hackathon](https://img.shields.io/badge/Challenge-Cursor%20AI%20Hackathon%20Myanmar-purple?style=flat-square)](https://github.com/SwordsoulOfLabrynth/cursor-myanmar-hackathon-2026)
+
+---
+
+<div align="center">
+  <img src="docs/images/atom-mind-montage.png" alt="ATOM Mind Showcase Montage" width="100%" />
+</div>
+
+---
 
 **Synthetic demo data only — not an official ATOM product.**
 

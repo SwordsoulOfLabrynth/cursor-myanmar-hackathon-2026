@@ -11,12 +11,6 @@
 
 ---
 
-<div align="center">
-  <img src="docs/images/atom-mind-montage.png" alt="ATOM Mind Showcase Montage" width="100%" />
-</div>
-
----
-
 **Synthetic demo data only — not an official ATOM product.**
 
 ## Hackathon submission
